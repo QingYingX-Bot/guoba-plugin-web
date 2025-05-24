@@ -55,13 +55,17 @@
 
       const schemas = initSchemas();
 
-      const [registerForm, { setFieldsValue, validate }] = useForm({
+      const [registerForm, formActions] = useForm({
         labelWidth: 120,
         schemas: schemas,
         labelAlign: 'right',
         showActionButtonGroup: false,
         baseColProps: { span: 24 },
       });
+
+      provide('formActions', formActions);
+      provide('pluginInfo', props.plugin);
+      const { setFieldsValue, validate } = formActions;
 
       function initSchemas(): FormSchemas {
         if (!props.softGrouping) {

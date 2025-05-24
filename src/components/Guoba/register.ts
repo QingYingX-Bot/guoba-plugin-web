@@ -19,6 +19,10 @@ export function registerGuobaComponent(componentMap: componentMapType) {
     registerAsyncComponent(() => import('./src/GTags.vue')),
   );
   componentMap.set(
+    'GButtons',
+    registerAsyncComponent(() => import('./src/Buttons/GButtons.vue')),
+  );
+  componentMap.set(
     'GSubForm',
     registerAsyncComponent(() => import('./src/SubForm/SubForm.vue')),
   );

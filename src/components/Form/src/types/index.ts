@@ -86,6 +86,7 @@ export type ComponentType =
   | 'GColorPicker'
   | 'EasyCron'
   | 'GTags'
+  | 'GButtons'
   | 'GSelectFriend'
   | 'GSelectGroup'
   | 'Input'
