@@ -21,12 +21,32 @@
   const emit = defineEmits(['register', 'ok']);
   const schemasRef = inject<Ref<FormSchemas>>(SCHEMAS_KEY, ref([]));
 
+  const getSchemas = computed(() => {
+    if (Array.isArray(schemasRef.value)) {
+      return schemasRef.value.map((item) => {
+        if (item.component === 'GSubForm') {
+          // todo function支持
+          // @ts-ignore
+          let componentProps = typeof item.componentProps === 'function' ? item.componentProps() : item.componentProps;
+          item.componentProps = {
+            ...componentProps,
+            onChange: (models) => {
+              onSubmit();
+            },
+          };
+        }
+        return item;
+      });
+    }
+    return [];
+  });
+
   const payload = ref<any>(null);
 
   const [registerFormModal, formModal] = useModalInner(open);
   const [registerForm, formRef] = useForm({
     labelWidth: 120,
-    schemas: schemasRef,
+    schemas: getSchemas,
     labelAlign: 'right',
     showActionButtonGroup: false,
     baseColProps: { span: 24 },
@@ -49,9 +69,13 @@
     await formRef.setFieldsValue(data.models);
   }
 
-  async function onOk() {
+  async function onSubmit() {
     let values = await formRef.validate();
     emit('ok', { values, payload: payload.value });
+  }
+
+  async function onOk() {
+    await onSubmit();
     formModal.closeModal();
   }
 </script>

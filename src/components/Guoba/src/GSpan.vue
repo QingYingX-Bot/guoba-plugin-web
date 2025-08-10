@@ -26,16 +26,53 @@
     ];
   });
 
+  // 安全地将任何值转换为可显示的字符串。
+  function toDisplayStringSafe(val: any): string {
+    if (val == null) return '';
+    // strings
+    if (typeof val === 'string') return val;
+    // numbers/booleans
+    if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+    // Date
+    if (val instanceof Date) return String(val);
+    // 数组：安全地将每个元素转换为字符串并使用逗号连接，跳过空值。
+    if (Array.isArray(val)) {
+      const parts = (val as any[])
+        .map((item) => toDisplayStringSafe(item))
+        .filter((s) => s !== '');
+      return parts.join(',');
+    }
+    // 对象：首选通用标签字段；回退到JSON字符串（避免 [object Object]）
+    if (typeof val === 'object') {
+      const candidate = (val as Record<string, any>);
+      for (const key of ['label', 'name', 'title', 'text', 'key', 'value']) {
+        const v = candidate?.[key];
+        if (v != null && (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean')) {
+          return String(v);
+        }
+      }
+      try {
+        return JSON.stringify(val);
+      } catch (e) {
+        // 循环或不可序列化对象；显示为空而不是 [object Object]
+        return '';
+      }
+    }
+    try {
+      return String(val);
+    } catch {
+      return '';
+    }
+  }
+
   const spanValue = computed(() => {
     if (isEmpty.value) {
       return '';
     } else {
-      let value = props.value;
-      if (Array.isArray(value)) {
-        value = value.join(',');
-      }
+      let value = toDisplayStringSafe(props.value);
       if (props.password) {
-        value = value.replace(/./g, '*').substring(0, 12);
+        // 掩盖所有字符，限制长度为12
+        value = '*'.repeat(value.length).slice(0, 12);
       }
       return value;
     }
