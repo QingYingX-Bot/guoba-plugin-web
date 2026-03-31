@@ -18,7 +18,6 @@ import {
   Skeleton,
   Space,
   Tabs,
-  Typography,
   message,
 } from 'ant-design-vue';
 
@@ -65,6 +64,9 @@ const configGroupKey = ref('default');
 
 const readmeLoading = ref(false);
 const readmeText = ref('');
+const readmeHtml = computed(() => {
+  return renderMarkdown(readmeText.value);
+});
 
 const actionLoading = ref('');
 
@@ -231,6 +233,312 @@ function parseAuthor(pluginData: GuobaPlugin) {
     ? pluginData.author
     : [pluginData.author];
   return names.filter(Boolean).join(' ');
+}
+
+function escapeAttribute(text: string) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
+function isSafeImageSize(size?: string) {
+  return !!(size && /^\d+(\.\d+)?(%|px)$/.test(size.trim()));
+}
+
+function sanitizeUrl(url: string) {
+  const trimmed = String(url ?? '').trim();
+  if (!trimmed) {
+    return '';
+  }
+  if (/^(https?:\/\/|\/|#)/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^data:image\/(png|jpe?g|gif|webp|bmp|svg\+xml);base64,/i.test(trimmed)) {
+    return trimmed;
+  }
+  return '';
+}
+
+function buildImageHtml(options: {
+  align?: string;
+  alt?: string;
+  src: string;
+  title?: string;
+  width?: string;
+}) {
+  const src = sanitizeUrl(options.src);
+  if (!src) {
+    return '';
+  }
+
+  const attrs = [
+    `alt="${escapeAttribute(String(options.alt ?? ''))}"`,
+    'loading="lazy"',
+    `src="${escapeAttribute(src)}"`,
+  ];
+
+  const title = String(options.title ?? '').trim();
+  if (title) {
+    attrs.push(`title="${escapeAttribute(title)}"`);
+  }
+
+  const style: string[] = ['max-width:100%;'];
+  const width = String(options.width ?? '').trim();
+  if (isSafeImageSize(width)) {
+    style.push(`width:${width};`);
+  }
+
+  const align = String(options.align ?? '').trim().toLowerCase();
+  if (align === 'center') {
+    style.push('display:block;');
+    style.push('margin:0 auto;');
+  } else if (align === 'left') {
+    style.push('float:left;');
+    style.push('margin:0 12px 12px 0;');
+  } else if (align === 'right') {
+    style.push('float:right;');
+    style.push('margin:0 0 12px 12px;');
+  }
+
+  attrs.push(`style="${escapeAttribute(style.join(''))}"`);
+  return `<img ${attrs.join(' ')} />`;
+}
+
+function parseHtmlImageTag(tag: string) {
+  const src = tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1];
+  if (!src) {
+    return '';
+  }
+  const alt = tag.match(/\balt\s*=\s*["']([^"']*)["']/i)?.[1];
+  const width = tag.match(/\bwidth\s*=\s*["']([^"']+)["']/i)?.[1];
+  const align = tag.match(/\balign\s*=\s*["']([^"']+)["']/i)?.[1];
+  const title = tag.match(/\btitle\s*=\s*["']([^"']+)["']/i)?.[1];
+  return buildImageHtml({
+    align,
+    alt,
+    src,
+    title,
+    width,
+  });
+}
+
+function renderInlineMarkdown(line: string) {
+  if (!line) {
+    return '';
+  }
+
+  const tokenStore: string[] = [];
+  const pushToken = (html: string) => {
+    const token = `@@README_TOKEN_${tokenStore.length}@@`;
+    tokenStore.push(html);
+    return token;
+  };
+
+  let content = line;
+
+  content = content.replace(/<img\s+[^>]*src\s*=\s*["'][^"']+["'][^>]*>/gi, (tag) => {
+    const html = parseHtmlImageTag(tag);
+    return html ? pushToken(html) : '';
+  });
+
+  content = content.replace(/`([^`\n]+)`/g, (_match, code: string) => {
+    return pushToken(`<code>${escapeHtml(code)}</code>`);
+  });
+
+  content = content.replace(
+    /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
+    (_match, alt: string, rawUrl: string, title?: string) => {
+      const html = buildImageHtml({
+        alt,
+        src: rawUrl,
+        title,
+      });
+      return html ? pushToken(html) : '';
+    },
+  );
+
+  content = content.replace(
+    /\[([^\]]+)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g,
+    (_match, text: string, rawUrl: string, title?: string) => {
+      const safeUrl = sanitizeUrl(rawUrl);
+      if (!safeUrl) {
+        return escapeHtml(text);
+      }
+
+      const attrs = [
+        `href="${escapeAttribute(safeUrl)}"`,
+        'target="_blank"',
+        'rel="noopener noreferrer"',
+      ];
+
+      const titleText = String(title ?? '').trim();
+      if (titleText) {
+        attrs.push(`title="${escapeAttribute(titleText)}"`);
+      }
+
+      return pushToken(`<a ${attrs.join(' ')}>${escapeHtml(text)}</a>`);
+    },
+  );
+
+  content = escapeHtml(content);
+  content = content
+    .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>');
+
+  for (let index = 0; index < tokenStore.length; index += 1) {
+    content = content.replaceAll(`@@README_TOKEN_${index}@@`, tokenStore[index] ?? '');
+  }
+
+  return content;
+}
+
+function renderMarkdown(markdown: string) {
+  const source = String(markdown ?? '').replace(/\r\n?/g, '\n').trim();
+  if (!source) {
+    return '';
+  }
+
+  const lines = source.split('\n');
+  const html: string[] = [];
+  let paragraph: string[] = [];
+  let listType: 'ol' | 'ul' | null = null;
+  let listItems: string[] = [];
+  let inCodeBlock = false;
+  let codeLang = '';
+  let codeLines: string[] = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length === 0) {
+      return;
+    }
+    html.push(`<p>${renderInlineMarkdown(paragraph.join(' '))}</p>`);
+    paragraph = [];
+  };
+
+  const flushList = () => {
+    if (!listType || listItems.length === 0) {
+      return;
+    }
+    html.push(`<${listType}>${listItems.join('')}</${listType}>`);
+    listType = null;
+    listItems = [];
+  };
+
+  const flushCode = () => {
+    if (!inCodeBlock) {
+      return;
+    }
+    const className = codeLang ? ` class="language-${escapeAttribute(codeLang)}"` : '';
+    html.push(`<pre><code${className}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+    inCodeBlock = false;
+    codeLang = '';
+    codeLines = [];
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (inCodeBlock) {
+      if (/^```/.test(trimmed)) {
+        flushCode();
+      } else {
+        codeLines.push(line);
+      }
+      continue;
+    }
+
+    const codeStart = trimmed.match(/^```([\w+-]*)\s*$/);
+    if (codeStart) {
+      flushParagraph();
+      flushList();
+      inCodeBlock = true;
+      codeLang = codeStart[1] ?? '';
+      codeLines = [];
+      continue;
+    }
+
+    if (!trimmed) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      flushList();
+      const level = Math.min(6, heading[1]?.length ?? 1);
+      html.push(`<h${level}>${renderInlineMarkdown(heading[2] ?? '')}</h${level}>`);
+      continue;
+    }
+
+    if (/^(\*{3,}|-{3,}|_{3,})$/.test(trimmed)) {
+      flushParagraph();
+      flushList();
+      html.push('<hr />');
+      continue;
+    }
+
+    const blockquote = trimmed.match(/^>\s?(.*)$/);
+    if (blockquote) {
+      flushParagraph();
+      flushList();
+      html.push(`<blockquote><p>${renderInlineMarkdown(blockquote[1] ?? '')}</p></blockquote>`);
+      continue;
+    }
+
+    const htmlImgLine = trimmed.match(/^<img\s+[^>]*src\s*=\s*["'][^"']+["'][^>]*>$/i);
+    if (htmlImgLine) {
+      flushParagraph();
+      flushList();
+      const imageHtml = parseHtmlImageTag(trimmed);
+      if (imageHtml) {
+        html.push(`<p>${imageHtml}</p>`);
+      }
+      continue;
+    }
+
+    const ulMatch = trimmed.match(/^[-*+]\s+(.+)$/);
+    if (ulMatch) {
+      flushParagraph();
+      if (listType && listType !== 'ul') {
+        flushList();
+      }
+      listType = 'ul';
+      listItems.push(`<li>${renderInlineMarkdown(ulMatch[1] ?? '')}</li>`);
+      continue;
+    }
+
+    const olMatch = trimmed.match(/^\d+\.\s+(.+)$/);
+    if (olMatch) {
+      flushParagraph();
+      if (listType && listType !== 'ol') {
+        flushList();
+      }
+      listType = 'ol';
+      listItems.push(`<li>${renderInlineMarkdown(olMatch[1] ?? '')}</li>`);
+      continue;
+    }
+
+    paragraph.push(trimmed);
+  }
+
+  flushParagraph();
+  flushList();
+  flushCode();
+
+  return html.join('\n');
 }
 
 function closeModal() {
@@ -512,12 +820,8 @@ watch(pluginSchemaGroups, (groups) => {
           </Button>
         </Space>
         <Skeleton v-if="readmeLoading" active />
-        <Empty v-else-if="!readmeText" description="README 为空或读取失败" />
-        <Typography>
-          <Typography.Paragraph v-if="readmeText" class="readme-content">
-            {{ readmeText }}
-          </Typography.Paragraph>
-        </Typography>
+        <Empty v-else-if="!readmeHtml" description="README 为空或读取失败" />
+        <div v-else class="readme-content" v-html="readmeHtml"></div>
       </Tabs.TabPane>
     </Tabs>
   </Modal>
@@ -532,7 +836,93 @@ watch(pluginSchemaGroups, (groups) => {
 }
 
 .readme-content {
-  white-space: pre-wrap;
+  max-height: 62vh;
+  overflow: auto;
+  padding-right: 6px;
+  line-height: 1.75;
   word-break: break-word;
+}
+
+.readme-content :deep(h1),
+.readme-content :deep(h2),
+.readme-content :deep(h3),
+.readme-content :deep(h4),
+.readme-content :deep(h5),
+.readme-content :deep(h6) {
+  margin: 1em 0 0.5em;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.readme-content :deep(h1) {
+  font-size: 1.5rem;
+}
+
+.readme-content :deep(h2) {
+  font-size: 1.3rem;
+}
+
+.readme-content :deep(h3) {
+  font-size: 1.15rem;
+}
+
+.readme-content :deep(p) {
+  margin: 0.6em 0;
+}
+
+.readme-content :deep(ul),
+.readme-content :deep(ol) {
+  margin: 0.6em 0;
+  padding-left: 1.6em;
+}
+
+.readme-content :deep(li + li) {
+  margin-top: 0.3em;
+}
+
+.readme-content :deep(a) {
+  color: #1677ff;
+  text-decoration: underline;
+}
+
+.readme-content :deep(img) {
+  border-radius: 6px;
+  max-width: 100%;
+  height: auto;
+}
+
+.readme-content :deep(pre) {
+  margin: 0.8em 0;
+  padding: 0.8em;
+  border-radius: 8px;
+  overflow: auto;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.readme-content :deep(code) {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.08);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.readme-content :deep(pre code) {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.readme-content :deep(blockquote) {
+  margin: 0.8em 0;
+  padding: 0.2em 0.8em;
+  border-left: 4px solid #d0d7de;
+  background: #f6f8fa;
+}
+
+.readme-content :deep(hr) {
+  margin: 1em 0;
+  border: 0;
+  border-top: 1px solid #e5e7eb;
 }
 </style>

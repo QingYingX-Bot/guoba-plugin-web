@@ -11,7 +11,7 @@ import type {
 
 import { computed, ref } from 'vue';
 
-import { Button, Divider, Modal, Popconfirm, Switch, message } from 'ant-design-vue';
+import { Button, Divider, Input, Modal, Popconfirm, Switch, message } from 'ant-design-vue';
 
 import SelectIconModal from './SelectIconModal.vue';
 
@@ -348,7 +348,7 @@ function openIconModal() {
       <div class="row">
         <div>分组</div>
         <div class="flex-1">
-          <a-input v-model:value="modelData.group.group" placeholder="分组" />
+          <Input v-model:value="modelData.group.group" placeholder="分组" />
         </div>
       </div>
 
@@ -389,14 +389,14 @@ function openIconModal() {
         <div class="row">
           <div>标题</div>
           <div class="flex-1">
-            <a-input v-model:value="modelData.cell.title" placeholder="标题" />
+            <Input v-model:value="modelData.cell.title" placeholder="标题" />
           </div>
         </div>
 
         <div class="row">
           <div>描述</div>
           <div class="flex-1">
-            <a-input v-model:value="modelData.cell.desc" placeholder="描述" />
+            <Input v-model:value="modelData.cell.desc" placeholder="描述" />
           </div>
         </div>
 
