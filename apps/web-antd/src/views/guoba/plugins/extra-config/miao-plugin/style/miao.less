@@ -1,0 +1,155 @@
+.miao-help-panel {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+  }
+
+  .container {
+    width: 830px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px #888;
+    background-size: 100% auto;
+    padding: 20px 15px 10px;
+    font-size: 18px;
+    color: #1e1f20;
+    font-family: Number, '汉仪文黑-65W', YS, PingFangSC-Medium, 'PingFang SC', sans-serif;
+  }
+
+  .head-box {
+    margin: 60px 0 0;
+    border-radius: 15px;
+    padding: 10px 20px 0;
+    color: #fff;
+
+    .title {
+      font-size: 50px;
+      text-shadow: 0 0 1px #000, 1px 1px 3px rgb(0 0 0 / 90%);
+      font-family: Number, '印品南征北战NZBZ体', NZBZ, '汉仪文黑-65W', YS,
+        PingFangSC-Medium, 'PingFang SC', sans-serif;
+    }
+
+    .label {
+      font-size: 16px;
+      text-shadow: 0 0 1px #000, 1px 1px 3px rgb(0 0 0 / 90%);
+    }
+  }
+
+  .cont-box {
+    margin: 20px 0;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 10px 0 rgb(0 0 0 / 15%);
+    position: relative;
+    background: var(--miao-cont-bg, rgba(43, 52, 61, 0.8));
+    backdrop-filter: var(--miao-cont-blur, blur(3px));
+  }
+
+  .help-group {
+    font-size: 18px;
+    font-weight: bold;
+    padding: 15px 15px 10px 20px;
+    color: var(--miao-font-color, #ceb78b);
+    text-shadow: var(--miao-font-shadow, none);
+    background: var(--miao-header-bg, rgba(34, 41, 51, 0.4));
+    cursor: pointer;
+
+    span {
+      display: block;
+      transform-origin: 35px 10px;
+      transition: all 0.15s;
+    }
+
+    &:hover span {
+      opacity: 0.85;
+      transform: scale(1.08);
+    }
+  }
+
+  .help-table {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+    color: #fff;
+    overflow: hidden;
+
+    .tr {
+      display: table-row;
+    }
+
+    .tr:nth-child(odd) {
+      background: var(--miao-row-bg-1, rgba(34, 41, 51, 0.2));
+    }
+
+    .tr:nth-child(even) {
+      background: var(--miao-row-bg-2, rgba(34, 41, 51, 0.4));
+    }
+
+    .td {
+      width: var(--miao-col-width-percent, 33.33%);
+      display: table-cell;
+      font-size: 14px;
+      line-height: 24px;
+      text-align: left;
+      padding: 12px 0 12px 50px;
+      box-shadow: 0 0 1px 0 #888 inset;
+      position: relative;
+      transition: all 0.2s;
+
+      &:not(.empty) {
+        cursor: pointer;
+
+        &:hover {
+          background-color: #3983a3;
+          z-index: 2;
+        }
+      }
+
+      &.active {
+        background-color: #3983a3;
+      }
+    }
+
+    .help-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 5px;
+      position: absolute;
+      left: 6px;
+      top: 12px;
+      transform: scale(0.425) translateX(-47px) translateY(-47px);
+      display: block;
+    }
+
+    .help-title {
+      display: block;
+      font-size: 16px;
+      line-height: 24px;
+      color: var(--miao-font-color, #d3bc8e);
+      text-shadow: var(--miao-font-shadow, none);
+    }
+
+    .help-desc {
+      display: block;
+      font-size: 13px;
+      line-height: 18px;
+      color: var(--miao-desc-color, #eee);
+      text-shadow: var(--miao-desc-shadow, none);
+    }
+  }
+
+  .copyright {
+    margin: 10px 0;
+    text-align: center;
+    color: #fff;
+    font-size: 14px;
+    text-shadow: 1px 1px 1px #000;
+
+    .version {
+      color: #d3bc8e;
+      padding: 0 3px;
+      display: inline-block;
+    }
+  }
+}
