@@ -49,6 +49,7 @@ const pageLoading = ref(true);
 const cardStates = reactive<Record<string, CardState>>({});
 const normalCardValues = reactive<Record<string, Recordable<any>>>({});
 const keyFormEntries = reactive<Record<string, KeyFormEntry[]>>({});
+const keyFormCollapsed = reactive<Record<string, Record<string, boolean>>>({});
 const arrayCardValues = reactive<Record<string, any[]>>({});
 
 const activeTab = computed(() => {
@@ -256,6 +257,37 @@ function normalizeKeyFormEntries(rawValue: unknown): KeyFormEntry[] {
   return entries;
 }
 
+function getKeyFormCollapseState(cardKey: string) {
+  if (!isRecord(keyFormCollapsed[cardKey])) {
+    keyFormCollapsed[cardKey] = {};
+  }
+  return keyFormCollapsed[cardKey]!;
+}
+
+function defaultKeyFormCollapsed(entry: KeyFormEntry) {
+  return entry.displayKey !== 'default';
+}
+
+function syncKeyFormCollapseState(cardKey: string, entries: KeyFormEntry[]) {
+  const current = getKeyFormCollapseState(cardKey);
+  const next: Record<string, boolean> = {};
+
+  for (const entry of entries) {
+    next[entry.rawKey] = current[entry.rawKey] ?? defaultKeyFormCollapsed(entry);
+  }
+
+  keyFormCollapsed[cardKey] = next;
+}
+
+function isKeyFormEntryCollapsed(cardKey: string, entry: KeyFormEntry) {
+  return Boolean(getKeyFormCollapseState(cardKey)[entry.rawKey]);
+}
+
+function toggleKeyFormEntry(cardKey: string, entry: KeyFormEntry) {
+  const state = getKeyFormCollapseState(cardKey);
+  state[entry.rawKey] = !Boolean(state[entry.rawKey]);
+}
+
 function keyFormTitle(card: GuobaConfigCard, entry: KeyFormEntry) {
   const rawTitle = String(card.title ?? '').trim();
   const rendered = renderTemplateText(rawTitle, {
@@ -370,7 +402,9 @@ async function loadCardData(card: GuobaConfigCard, force = false) {
     const result = await getConfigDataApi(card.key);
 
     if (card.type === 'keyFormCard') {
-      keyFormEntries[card.key] = normalizeKeyFormEntries(result);
+      const entries = normalizeKeyFormEntries(result);
+      keyFormEntries[card.key] = entries;
+      syncKeyFormCollapseState(card.key, entries);
       return;
     }
 
@@ -578,11 +612,18 @@ onMounted(async () => {
                 v-for="entry in keyFormEntries[card.key] ?? []"
                 :key="entry.rawKey"
                 class="key-form-card"
+                :class="{ 'is-collapsed': isKeyFormEntryCollapsed(card.key, entry) }"
                 size="small"
                 :title="keyFormTitle(card, entry)"
               >
                 <template #extra>
                   <Space>
+                    <Button
+                      size="small"
+                      @click="toggleKeyFormEntry(card.key, entry)"
+                    >
+                      {{ isKeyFormEntryCollapsed(card.key, entry) ? '展开' : '收起' }}
+                    </Button>
                     <Button
                       size="small"
                       type="primary"
@@ -602,7 +643,10 @@ onMounted(async () => {
                   </Space>
                 </template>
 
-                <Form layout="vertical">
+                <Form
+                  v-show="!isKeyFormEntryCollapsed(card.key, entry)"
+                  layout="vertical"
+                >
                   <template
                     v-for="schema in card.schemas ?? []"
                     :key="`${entry.rawKey}-${schema.field || schema.label}`"
@@ -689,6 +733,25 @@ onMounted(async () => {
   color: rgb(100 116 139);
 }
 
+:deep(.ant-skeleton),
+:deep(.ant-tabs),
+:deep(.ant-empty) {
+  max-width: 1440px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.mb-4 {
+  max-width: 1440px;
+  margin-right: auto;
+  margin-left: auto;
+  margin-bottom: 24px;
+}
+
+.mb-4:last-child {
+  margin-bottom: 0;
+}
+
 .key-form-list {
   display: flex;
   flex-direction: column;
@@ -696,8 +759,20 @@ onMounted(async () => {
 }
 
 .key-form-card {
-  border: 1px dashed rgb(226 232 240);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  overflow: hidden;
+  border: 1px solid rgb(148 163 184 / 70%);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgb(255 255 255) 0%, rgb(248 250 252 / 85%) 100%);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 6%);
+}
+
+.key-form-card :deep(.ant-card-head) {
+  background: rgb(248 250 252 / 90%);
+  border-bottom-color: rgb(226 232 240);
+}
+
+.key-form-card.is-collapsed :deep(.ant-card-body) {
+  padding-bottom: 12px;
 }
 
 .array-list {

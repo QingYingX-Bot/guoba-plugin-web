@@ -1222,27 +1222,31 @@ function updateInputNumber(value?: null | number | string) {
       <Modal
         v-model:open="selectBizOpen"
         :title="selectBizModalTitle"
-        :width="900"
+        :width="980"
+        wrap-class-name="select-biz-modal"
         @ok="applySelectBizSelection"
       >
-        <Space class="mb-3" wrap>
+        <div class="select-biz-toolbar">
           <Input
             v-model:value="selectBizFilters.id"
+            class="select-biz-filter"
             :placeholder="isSelectGroup ? '按群号筛选' : '按QQ号筛选'"
-            style="width: 220px"
             @pressEnter="onSelectBizSearch"
           />
           <Input
             v-model:value="selectBizFilters.name"
+            class="select-biz-filter"
             :placeholder="isSelectGroup ? '按群名筛选' : '按昵称筛选'"
-            style="width: 220px"
             @pressEnter="onSelectBizSearch"
           />
-          <Button type="primary" @click="onSelectBizSearch">查询</Button>
-          <Button @click="onSelectBizResetSearch">重置</Button>
-        </Space>
+          <Space class="select-biz-toolbar-actions" wrap>
+            <Button type="primary" @click="onSelectBizSearch">查询</Button>
+            <Button @click="onSelectBizResetSearch">重置</Button>
+          </Space>
+        </div>
 
         <Table
+          class="select-biz-table"
           size="small"
           :loading="selectBizTableLoading"
           :columns="selectBizColumns"
@@ -1470,6 +1474,95 @@ function updateInputNumber(value?: null | number | string) {
 
 .select-biz-wrap {
   width: 100%;
+}
+
+.select-biz-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.select-biz-filter {
+  min-width: 0;
+}
+
+.select-biz-toolbar-actions {
+  justify-self: end;
+}
+
+:deep(.select-biz-modal .ant-modal-body) {
+  padding-top: 20px;
+}
+
+:deep(.select-biz-modal .ant-table-wrapper) {
+  overflow: hidden;
+}
+
+:deep(.select-biz-modal .ant-table-pagination.ant-pagination) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  row-gap: 12px;
+  column-gap: 16px;
+  margin-top: 16px;
+}
+
+:deep(.select-biz-modal .ant-pagination-total-text) {
+  margin-inline-end: auto;
+  color: rgb(100 116 139);
+}
+
+:deep(.select-biz-modal .ant-pagination-options) {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  margin-inline-start: auto;
+}
+
+:deep(.select-biz-modal .ant-pagination-options-size-changer) {
+  min-width: 112px;
+  margin: 0;
+}
+
+:deep(.select-biz-modal .ant-pagination-options-quick-jumper) {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  white-space: nowrap;
+}
+
+:deep(.select-biz-modal .ant-pagination-options-quick-jumper input) {
+  width: 56px;
+  min-width: 56px;
+  margin: 0;
+}
+
+@media (max-width: 960px) {
+  .select-biz-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .select-biz-toolbar-actions {
+    justify-self: start;
+  }
+
+  :deep(.select-biz-modal .ant-table-pagination.ant-pagination) {
+    justify-content: flex-start;
+  }
+
+  :deep(.select-biz-modal .ant-pagination-options) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-inline-start: 0;
+    width: 100%;
+  }
 }
 
 .sub-form-wrap {

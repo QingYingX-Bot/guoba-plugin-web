@@ -410,6 +410,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
+:deep(.ant-skeleton),
+:deep(.ant-result),
+:deep(.ant-card) {
+  width: 100%;
+  max-width: 1440px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
 .plugin-summary-card {
   margin-bottom: 16px;
 }

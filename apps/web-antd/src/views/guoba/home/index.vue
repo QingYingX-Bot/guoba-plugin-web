@@ -104,7 +104,8 @@ const installedPlugins = computed(() => {
 
 function getMainAuthor(plugin: GuobaPlugin) {
   const authors = Array.isArray(plugin.author) ? plugin.author : [plugin.author];
-  return String(authors[0] || '未知').trim();
+  const author = String(authors[0] || '未知').trim();
+  return author.replace(/^@+/, '') || '未知';
 }
 
 function getInitial(text: string) {

@@ -38,7 +38,7 @@ onMounted(() => {
       <Alert
         show-icon
         type="warning"
-        message="该页面为 Guoba Fork 1.0.0 过渡版，当前提供配置读取和详情跳转。由于 v1 接口保存依赖图片文件，完整编辑器将在后续单独迁移。"
+        message="该页面为 Guoba Fork 1.0.1 过渡版，当前提供配置读取和详情跳转。由于 v1 接口保存依赖图片文件，完整编辑器将在后续单独迁移。"
       />
 
       <Space class="my-4">

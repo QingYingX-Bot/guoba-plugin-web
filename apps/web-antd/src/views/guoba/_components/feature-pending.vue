@@ -13,7 +13,7 @@ defineProps<Props>();
     <p class="mt-2 text-sm text-muted-foreground">
       {{
         description ??
-        'This module is temporarily scaffolded for Guoba Fork 1.0.0. Business components will be migrated in the next step.'
+        'This module is temporarily scaffolded for Guoba Fork 1.0.1. Business components will be migrated in the next step.'
       }}
     </p>
   </div>
