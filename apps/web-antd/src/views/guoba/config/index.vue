@@ -656,6 +656,7 @@ onMounted(async () => {
                     </Divider>
                     <SchemaField
                       v-else
+                      :model="entry.value"
                       :schema="schema"
                       :value="getKeyEntryFieldValue(entry, String(schema.field ?? ''))"
                       @update:value="setKeyEntryFieldValue(entry, String(schema.field ?? ''), $event)"
@@ -712,6 +713,7 @@ onMounted(async () => {
                 </Divider>
                 <SchemaField
                   v-else
+                  :model="normalCardValues[card.key]"
                   :schema="schema"
                   :value="getNormalFieldValue(card.key, String(schema.field ?? ''))"
                   @update:value="setNormalFieldValue(card.key, String(schema.field ?? ''), $event)"

@@ -7,6 +7,7 @@
 - 维护 Guoba 管理面板前端（Vue 3 + Vite + TypeScript）。
 - 构建后同步到 `../server/static` 供后端直接托管。
 - 保持最小可维护结构，减少无关目录和脚本干扰。
+- 为旧版 `guoba.support.js` 提供 schema 组件兼容层，降低插件迁移成本。
 
 ## 当前目录（核心）
 
@@ -70,10 +71,12 @@ pnpm run build:v5
 - 前端产物来源：`apps/web-antd/dist`
 - 同步目标目录：`../server/static`
 - 同步脚本：`scripts/sync-v5-dist.mjs`
+- 旧版 schema 兼容说明：`GUOBA_SCHEMA_COMPONENTS.md`
 
 ## 维护建议
 
 - 业务改动优先集中在 `apps/web-antd/src/views/guoba` 与 `apps/web-antd/src/api/guoba`。
 - 每次修改完页面后执行 `pnpm run build:v5`，避免前端与 `server/static` 不一致。
+- 可配合主仓库脚本 `node ../scripts/audit-guoba-schema-compat.mjs` 扫描当前工作区的 `guoba.support.js` 组件使用情况。
+- 需要在当前环境直接做兼容回归时，可执行 `node ../scripts/verify-guoba-compat.mjs` 一次性完成审计、类型检查、构建与同步。
 - 详细入口说明可见 `PROJECT_MAP.zh-CN.md`。
-

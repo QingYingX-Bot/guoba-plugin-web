@@ -1,6 +1,7 @@
 import type { Recordable } from '@vben/types';
 
 import { requestClient } from '#/api/request';
+import { deserializeGuobaSchemaValue } from '#/utils/guoba-schema';
 
 import type { GuobaInstallResult, GuobaPlugins } from './types';
 
@@ -8,9 +9,10 @@ import type { GuobaInstallResult, GuobaPlugins } from './types';
  * 获取插件列表
  */
 export async function getPluginsApi(force = false) {
-  return requestClient.get<GuobaPlugins>('/plugin/list', {
+  const result = await requestClient.get<GuobaPlugins>('/plugin/list', {
     params: { force },
   });
+  return deserializeGuobaSchemaValue(result);
 }
 
 /**
@@ -70,10 +72,32 @@ export async function savePluginConfigApi(
 export async function doPluginActionApi(
   pluginName: string,
   action: string,
-  args?: Recordable<any>,
+  args?: any,
 ) {
   return requestClient.post(`/plugin/do/${encodeURIComponent(pluginName)}/action`, {
     action,
     args: args ?? {},
   });
+}
+
+export async function doPluginActionResultApi<T = Recordable<any>>(
+  pluginName: string,
+  action: string,
+  args?: any,
+) {
+  return requestClient.post<{
+    code: number;
+    message: string;
+    ok?: boolean;
+    result: T;
+  }>(
+    `/plugin/do/${encodeURIComponent(pluginName)}/action`,
+    {
+      action,
+      args: args ?? {},
+    },
+    {
+      responseReturn: 'body',
+    },
+  );
 }

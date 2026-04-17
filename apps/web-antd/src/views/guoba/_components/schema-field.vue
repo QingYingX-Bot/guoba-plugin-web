@@ -3,11 +3,14 @@ import type { Recordable } from '@vben/types';
 
 import { computed, h, nextTick, reactive, ref, watch } from 'vue';
 
+import { globalShareState } from '@vben/common-ui';
+import { IconifyIcon } from '@vben/icons';
 import {
   Alert,
   Avatar,
   Button,
   Card,
+  Checkbox,
   Divider,
   Empty,
   Form,
@@ -20,13 +23,17 @@ import {
   Switch,
   Table,
   Tag,
+  Tooltip,
   message,
 } from 'ant-design-vue';
 
+import { doPluginActionResultApi } from '#/api/guoba/plugin';
 import { requestClient } from '#/api/request';
 import EasyCronVisual from '#/views/guoba/_components/easy-cron/EasyCronVisual.vue';
 
 const props = defineProps<{
+  pluginName?: string;
+  model?: Recordable<any>;
   schema: Recordable<any>;
   value: any;
 }>();
@@ -43,19 +50,66 @@ interface OicqPageResult<T = Recordable<any>> {
   total?: number;
 }
 
+const LEGACY_COMPONENT_ALIASES: Record<string, string> = {
+  'Input.TextArea': 'InputTextArea',
+  InputCountDown: 'Input',
+  InputGroup: 'Input',
+  InputSearch: 'Input',
+  Textarea: 'InputTextArea',
+};
+
+const SPECIAL_COMPONENTS = new Set([
+  'Alert',
+  'ApiTransfer',
+  'Checkbox',
+  'EasyCron',
+  'GButtons',
+  'GColorPicker',
+  'GSelectFriend',
+  'GSelectGroup',
+  'GSubForm',
+  'GTags',
+  'InputPassword',
+  'InputTextArea',
+  'RadioButtonGroup',
+  'Render',
+  'StrengthMeter',
+  'Switch',
+]);
+
 const rawComponent = computed(() => String(props.schema?.component ?? 'Input').trim());
 
 function normalizeLegacyComponent(componentName: string) {
   const current = componentName.trim();
-  if (current === 'Textarea' || current === 'Input.TextArea') {
-    return 'InputTextArea';
-  }
-  return current || 'Input';
+  return LEGACY_COMPONENT_ALIASES[current] || current || 'Input';
 }
 
 const component = computed(() => normalizeLegacyComponent(rawComponent.value));
 const componentProps = computed<Recordable<any>>(() => {
   return (props.schema?.componentProps as Recordable<any>) ?? {};
+});
+const adapterComponents = globalShareState.getComponents();
+
+const adapterComponentName = computed(() => {
+  switch (component.value) {
+    case 'ApiTree': {
+      return 'ApiTreeSelect';
+    }
+    case 'MonthPicker':
+    case 'WeekPicker': {
+      return 'DatePicker';
+    }
+    default: {
+      return component.value;
+    }
+  }
+});
+
+const dynamicComponent = computed(() => {
+  if (SPECIAL_COMPONENTS.has(component.value)) {
+    return null;
+  }
+  return adapterComponents[adapterComponentName.value] ?? null;
 });
 
 const helpText = computed(() => {
@@ -65,9 +119,7 @@ const helpText = computed(() => {
 });
 
 const selectOptions = computed(() => {
-  return Array.isArray(componentProps.value.options)
-    ? componentProps.value.options
-    : [];
+  return normalizeOptions(componentProps.value.options);
 });
 
 const checkedValue = computed(() => {
@@ -79,11 +131,24 @@ const unCheckedValue = computed(() => {
 });
 
 const switchChecked = computed(() => {
-  return props.value === checkedValue.value;
+  if (props.value === checkedValue.value) {
+    return true;
+  }
+  if (checkedValue.value === true) {
+    return toTrueFlag(props.value);
+  }
+  return false;
 });
 
 const isEasyCron = computed(() => component.value === 'EasyCron');
 const isTagComponent = computed(() => component.value === 'GTags');
+const isButtonGroup = computed(() => component.value === 'GButtons');
+const isCheckboxComponent = computed(() => component.value === 'Checkbox');
+const isColorPickerComponent = computed(() => component.value === 'GColorPicker');
+const isCompatTransfer = computed(() => component.value === 'ApiTransfer');
+const isRenderComponent = computed(() => component.value === 'Render');
+const isStrengthMeter = computed(() => rawComponent.value === 'StrengthMeter');
+const isRadioButtonGroup = computed(() => component.value === 'RadioButtonGroup');
 const isSelectFriend = computed(() => component.value === 'GSelectFriend');
 const isSelectGroup = computed(() => component.value === 'GSelectGroup');
 const isSelectBiz = computed(() => isSelectFriend.value || isSelectGroup.value);
@@ -104,6 +169,41 @@ function cloneValue<T>(value: T): T {
   } catch {
     return value;
   }
+}
+
+function normalizeOptionItem(option: any): Recordable<any> {
+  if (!isRecord(option)) {
+    return {
+      label: String(option ?? ''),
+      value: option,
+    };
+  }
+
+  const next: Recordable<any> = { ...option };
+  const label = option.label ?? option.title ?? option.name ?? option.text ?? option.value;
+  const value = option.value ?? option.key ?? option.id ?? option.label ?? option.title;
+
+  if (next.label === undefined) {
+    next.label = label;
+  }
+  if (next.value === undefined) {
+    next.value = value;
+  }
+
+  if (Array.isArray(option.children)) {
+    next.children = normalizeOptions(option.children);
+  } else if (Array.isArray(option.options)) {
+    next.children = normalizeOptions(option.options);
+  }
+
+  return next;
+}
+
+function normalizeOptions(options: any) {
+  if (!Array.isArray(options)) {
+    return [];
+  }
+  return options.map((item) => normalizeOptionItem(item));
 }
 
 function getByPath(source: Recordable<any>, path: string) {
@@ -138,6 +238,62 @@ function setByPath(target: Recordable<any>, path: string, value: any) {
 
   const lastKey = keys[keys.length - 1]!;
   current[lastKey] = value;
+}
+
+function getModelFieldValue(path: string) {
+  const currentModel = isRecord(props.model) ? props.model : {};
+  if (!path) {
+    return undefined;
+  }
+  if (Object.prototype.hasOwnProperty.call(currentModel, path)) {
+    return currentModel[path];
+  }
+  return getByPath(currentModel, path);
+}
+
+function stringifyTemplateValue(value: any) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function resolveTemplateValue(input: any): any {
+  if (typeof input === 'string') {
+    const exactMatch = input.trim().match(/^#\{([^}]+)\}$/);
+    if (exactMatch) {
+      return getModelFieldValue(exactMatch[1]!.trim());
+    }
+
+    return input.replace(/#\{([^}]+)\}/g, (_full, expression) => {
+      const value = getModelFieldValue(String(expression ?? '').trim());
+      return stringifyTemplateValue(value);
+    });
+  }
+
+  if (Array.isArray(input)) {
+    return input.map((item) => resolveTemplateValue(item));
+  }
+
+  if (isRecord(input)) {
+    const output: Recordable<any> = {};
+    for (const [key, value] of Object.entries(input)) {
+      output[key] = resolveTemplateValue(value);
+    }
+    return output;
+  }
+
+  return input;
 }
 
 function isSchemaMarker(schema: Recordable<any>) {
@@ -277,6 +433,349 @@ function getSchemaCompatValue(...keys: string[]) {
   }
   return undefined;
 }
+
+function omitComponentProps(...keys: string[]) {
+  const next = { ...componentProps.value };
+  keys.forEach((key) => {
+    delete next[key];
+  });
+  return next;
+}
+
+const dynamicComponentProps = computed<Recordable<any>>(() => {
+  const next = { ...componentProps.value };
+
+  if (component.value === 'DatePicker') {
+    const picker = String(next.picker ?? '').trim();
+    if (!next.valueFormat) {
+      if (picker === 'month') {
+        next.valueFormat = 'YYYY-MM';
+      } else if (picker === 'quarter') {
+        next.valueFormat = 'YYYY-[Q]Q';
+      } else if (picker === 'week') {
+        next.valueFormat = 'YYYY-wo';
+      } else if (picker === 'year') {
+        next.valueFormat = 'YYYY';
+      } else {
+        next.valueFormat = next.showTime ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD';
+      }
+    }
+  }
+
+  if (component.value === 'MonthPicker') {
+    next.format = next.format ?? 'YYYY-MM';
+    next.picker = 'month';
+    next.valueFormat = next.valueFormat ?? next.format;
+  }
+
+  if (component.value === 'WeekPicker') {
+    next.format = next.format ?? 'YYYY-wo';
+    next.picker = 'week';
+    next.valueFormat = next.valueFormat ?? next.format;
+  }
+
+  if (component.value === 'RangePicker') {
+    next.valueFormat =
+      next.valueFormat ?? (next.showTime ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD');
+  }
+
+  if (component.value === 'TimePicker') {
+    next.format = next.format ?? 'HH:mm:ss';
+    next.valueFormat = next.valueFormat ?? next.format;
+  }
+
+  if (component.value === 'TreeSelect' && next.treeData === undefined) {
+    next.treeData = normalizeOptions(next.options);
+  }
+
+  return next;
+});
+
+const dynamicModelPropName = computed(() => {
+  if (adapterComponentName.value === 'Upload') {
+    return 'fileList';
+  }
+  return 'value';
+});
+
+const dynamicBindProps = computed<Recordable<any>>(() => {
+  return {
+    ...dynamicComponentProps.value,
+    [dynamicModelPropName.value]: props.value,
+  };
+});
+
+const dynamicBindEvents = computed<Recordable<any>>(() => {
+  return {
+    [`update:${dynamicModelPropName.value}`]: update,
+  };
+});
+
+// -------------------- GButtons / Compat Renderers --------------------
+const buttonActionLoadingKey = ref('');
+const compatApiLoading = ref(false);
+const compatApiOptions = ref<Recordable<any>[]>([]);
+
+const buttonList = computed<Recordable<any>[]>(() => {
+  return Array.isArray(componentProps.value.buttons)
+    ? componentProps.value.buttons.filter((item) => isRecord(item))
+    : [];
+});
+
+const buttonSpaceSize = computed(() => {
+  const rawValue = Number(componentProps.value.spaceSize ?? 8);
+  return Number.isFinite(rawValue) && rawValue > 0 ? rawValue : 8;
+});
+
+const compatTransferOptions = computed<Recordable<any>[]>(() => {
+  const source = compatApiOptions.value.length > 0
+    ? compatApiOptions.value
+    : normalizeOptions(componentProps.value.dataSource ?? componentProps.value.options);
+
+  return source.map((item) => {
+    const value = item.value ?? item.key ?? item.id ?? item.label;
+    const title = item.title ?? item.label ?? item.name ?? value;
+    return {
+      ...item,
+      key: String(item.key ?? value ?? ''),
+      title: String(title ?? ''),
+      value,
+    };
+  });
+});
+
+const compatTransferSelectOptions = computed<Recordable<any>[]>(() => {
+  return compatTransferOptions.value.map((item) => ({
+    disabled: item.disabled,
+    label: item.title,
+    value: item.value,
+  }));
+});
+
+const colorPickerTextValue = computed(() => {
+  return typeof props.value === 'string' ? props.value : '';
+});
+
+const colorPickerNativeValue = computed(() => {
+  const current = colorPickerTextValue.value.trim();
+  return /^#([\da-f]{3}|[\da-f]{6})$/i.test(current) ? current : '#1677ff';
+});
+
+const renderPreviewValue = computed(() => {
+  const renderValue =
+    componentProps.value.render
+    ?? props.schema?.render
+    ?? componentProps.value.content
+    ?? componentProps.value.text
+    ?? helpText.value
+    ?? '';
+
+  if (typeof renderValue === 'function') {
+    try {
+      return renderValue({
+        model: props.model ?? {},
+        schema: props.schema,
+        update,
+        value: props.value,
+      });
+    } catch (error) {
+      return `Render 执行失败：${(error as Error)?.message ?? error}`;
+    }
+  }
+
+  return resolveTemplateValue(renderValue);
+});
+
+const strengthScore = computed(() => {
+  const value = String(props.value ?? '');
+  if (!value) {
+    return 0;
+  }
+
+  let score = 0;
+  if (value.length >= 8) score += 1;
+  if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1;
+  if (/\d/.test(value)) score += 1;
+  if (/[^A-Za-z0-9]/.test(value)) score += 1;
+  return Math.min(score, 4);
+});
+
+const strengthPercent = computed(() => strengthScore.value * 25);
+const strengthLabel = computed(() => {
+  switch (strengthScore.value) {
+    case 4:
+      return '很强';
+    case 3:
+      return '较强';
+    case 2:
+      return '中等';
+    case 1:
+      return '较弱';
+    default:
+      return '未填写';
+  }
+});
+
+const strengthColor = computed(() => {
+  if (strengthScore.value >= 4) {
+    return '#16a34a';
+  }
+  if (strengthScore.value >= 3) {
+    return '#22c55e';
+  }
+  if (strengthScore.value >= 2) {
+    return '#f59e0b';
+  }
+  if (strengthScore.value >= 1) {
+    return '#ef4444';
+  }
+  return '#cbd5e1';
+});
+
+async function loadCompatApiOptions() {
+  if (!isCompatTransfer.value) {
+    compatApiOptions.value = [];
+    return;
+  }
+
+  const api = componentProps.value.api;
+  if (typeof api !== 'function') {
+    compatApiOptions.value = [];
+    return;
+  }
+
+  compatApiLoading.value = true;
+  try {
+    const params = isRecord(componentProps.value.params)
+      ? cloneValue(componentProps.value.params)
+      : {};
+    const beforeFetch = componentProps.value.beforeFetch;
+    const shouldFetch = componentProps.value.shouldFetch;
+    const afterFetch = componentProps.value.afterFetch;
+    const resultField = String(componentProps.value.resultField ?? '').trim();
+
+    let finalParams = params;
+    if (typeof beforeFetch === 'function') {
+      finalParams = (await beforeFetch(finalParams)) ?? finalParams;
+    }
+    if (typeof shouldFetch === 'function') {
+      const canFetch = await shouldFetch(finalParams);
+      if (!canFetch) {
+        compatApiOptions.value = [];
+        return;
+      }
+    }
+
+    let result = await api(finalParams);
+    if (typeof afterFetch === 'function') {
+      result = (await afterFetch(result)) ?? result;
+    }
+
+    let rawOptions: any = [];
+    if (Array.isArray(result)) {
+      rawOptions = result;
+    } else if (resultField && isRecord(result)) {
+      rawOptions = getByPath(result, resultField);
+    } else if (Array.isArray(result?.result)) {
+      rawOptions = result.result;
+    }
+
+    compatApiOptions.value = normalizeOptions(rawOptions);
+  } catch {
+    compatApiOptions.value = [];
+  } finally {
+    compatApiLoading.value = false;
+  }
+}
+
+function getButtonActionKey(button: Recordable<any>, index: number) {
+  return `${String(button.action ?? button.label ?? 'button')}-${index}`;
+}
+
+function getButtonIcon(button: Recordable<any>) {
+  const icon = String(button.icon ?? '').trim();
+  if (!icon) {
+    return undefined;
+  }
+  return h(IconifyIcon, { icon });
+}
+
+function getButtonTooltip(button: Recordable<any>) {
+  if (!isRecord(button.tooltip)) {
+    return null;
+  }
+  const title = resolveTemplateValue(button.tooltip.title ?? button.tooltip.content ?? '');
+  if (!title) {
+    return null;
+  }
+  return {
+    placement: button.tooltip.placement,
+    title: String(title),
+  };
+}
+
+async function executeButtonAction(button: Recordable<any>, index: number) {
+  const pluginName = String(props.pluginName ?? '').trim();
+  if (!pluginName) {
+    message.warning('当前页面没有插件上下文，暂时无法执行该按钮动作');
+    return;
+  }
+
+  const action = String(button.action ?? '').trim();
+  if (!action) {
+    message.warning('该按钮没有配置 action');
+    return;
+  }
+
+  const buttonKey = getButtonActionKey(button, index);
+  buttonActionLoadingKey.value = buttonKey;
+  try {
+    const response = await doPluginActionResultApi(
+      pluginName,
+      action,
+      resolveTemplateValue(button.args ?? []),
+    );
+    message.success(String(response.message ?? '执行成功'));
+  } finally {
+    buttonActionLoadingKey.value = '';
+  }
+}
+
+async function onClickButtonAction(button: Recordable<any>, index: number) {
+  if (!isRecord(button.confirm)) {
+    await executeButtonAction(button, index);
+    return;
+  }
+
+  Modal.confirm({
+    cancelText: String(resolveTemplateValue(button.confirm.cancelText ?? '取消')),
+    content: String(resolveTemplateValue(button.confirm.content ?? '确定继续执行吗？')),
+    okText: String(resolveTemplateValue(button.confirm.okText ?? '确定')),
+    title: String(resolveTemplateValue(button.confirm.title ?? '提示')),
+    onOk: () => executeButtonAction(button, index),
+  });
+}
+
+function updateCheckbox(checked: boolean) {
+  emit('update:value', checked ? checkedValue.value : unCheckedValue.value);
+}
+
+function updateColorValue(value?: string) {
+  emit('update:value', String(value ?? '').trim());
+}
+
+function updateNativeColor(event: Event) {
+  const value = (event.target as HTMLInputElement | null)?.value ?? '';
+  updateColorValue(value);
+}
+
+watch(
+  () => [component.value, componentProps.value],
+  () => {
+    loadCompatApiOptions();
+  },
+  { deep: true, immediate: true },
+);
 
 // -------------------- EasyCron --------------------
 const cronMultiple = computed(() => {
@@ -844,8 +1343,13 @@ function applySelectBizSelection() {
   selectBizOpen.value = false;
 }
 
-function updateSelectBizValue(value?: Array<number | string>) {
-  const next = (value ?? []).map((item) => {
+function updateSelectBizValue(value?: any) {
+  const rawValues = Array.isArray(value)
+    ? value
+    : value === null || value === undefined || value === ''
+      ? []
+      : [value];
+  const next = rawValues.map((item) => {
     return typeof item === 'number' ? item : String(item);
   });
   selectBizSelectedRowKeys.value = next;
@@ -1356,6 +1860,8 @@ function updateInputNumber(value?: null | number | string) {
             </Divider>
             <SchemaField
               v-else
+              :model="subFormEditorModel"
+              :pluginName="props.pluginName"
               :schema="schemaItem"
               :value="getSubFormFieldValue(String(schemaItem.field ?? ''))"
               @update:value="setSubFormFieldValue(String(schemaItem.field ?? ''), $event)"
@@ -1379,6 +1885,13 @@ function updateInputNumber(value?: null | number | string) {
       :message="componentProps.message ?? schema?.label ?? schema?.field ?? ''"
     />
 
+    <Checkbox
+      v-else-if="isCheckboxComponent"
+      v-bind="omitComponentProps('checkedValue', 'unCheckedValue')"
+      :checked="switchChecked"
+      @update:checked="updateCheckbox"
+    />
+
     <Radio.Group
       v-else-if="component === 'RadioGroup'"
       v-bind="componentProps"
@@ -1394,6 +1907,21 @@ function updateInputNumber(value?: null | number | string) {
       </Radio>
     </Radio.Group>
 
+    <Radio.Group
+      v-else-if="isRadioButtonGroup"
+      v-bind="componentProps"
+      :value="value"
+      @update:value="update"
+    >
+      <Radio.Button
+        v-for="option in selectOptions"
+        :key="String(option?.value)"
+        :value="option?.value"
+      >
+        {{ option?.label ?? option?.value }}
+      </Radio.Button>
+    </Radio.Group>
+
     <Select
       v-else-if="component === 'Select'"
       style="width: 100%"
@@ -1403,12 +1931,111 @@ function updateInputNumber(value?: null | number | string) {
       @update:value="update"
     />
 
-    <Input.Password
-      v-else-if="component === 'InputPassword'"
-      v-bind="componentProps"
-      :value="inputLikeValue"
-      @update:value="updateInput"
+    <Select
+      v-else-if="isCompatTransfer"
+      style="width: 100%"
+      mode="multiple"
+      v-bind="
+        omitComponentProps(
+          'afterFetch',
+          'api',
+          'beforeFetch',
+          'dataSource',
+          'options',
+          'params',
+          'resultField',
+          'shouldFetch',
+        )
+      "
+      :loading="compatApiLoading"
+      :options="compatTransferSelectOptions"
+      :value="Array.isArray(value) ? value : []"
+      @update:value="update"
     />
+
+    <div v-else-if="isButtonGroup" class="schema-button-group">
+      <Space :size="buttonSpaceSize" wrap>
+        <template v-for="(button, index) in buttonList" :key="getButtonActionKey(button, index)">
+          <Tooltip
+            v-if="getButtonTooltip(button)"
+            v-bind="getButtonTooltip(button) ?? {}"
+          >
+            <Button
+              :block="button.block"
+              :danger="button.danger"
+              :disabled="button.disabled"
+              :ghost="button.ghost"
+              :icon="getButtonIcon(button)"
+              :loading="buttonActionLoadingKey === getButtonActionKey(button, index)"
+              :size="button.size"
+              :type="button.type ?? 'default'"
+              @click="onClickButtonAction(button, index)"
+            >
+              {{ resolveTemplateValue(button.label ?? button.text ?? `按钮${index + 1}`) }}
+            </Button>
+          </Tooltip>
+
+          <Button
+            v-else
+            :block="button.block"
+            :danger="button.danger"
+            :disabled="button.disabled"
+            :ghost="button.ghost"
+            :icon="getButtonIcon(button)"
+            :loading="buttonActionLoadingKey === getButtonActionKey(button, index)"
+            :size="button.size"
+            :type="button.type ?? 'default'"
+            @click="onClickButtonAction(button, index)"
+          >
+            {{ resolveTemplateValue(button.label ?? button.text ?? `按钮${index + 1}`) }}
+          </Button>
+        </template>
+      </Space>
+    </div>
+
+    <div v-else-if="isColorPickerComponent" class="color-picker-wrap">
+      <input
+        class="color-picker-native"
+        type="color"
+        :value="colorPickerNativeValue"
+        @input="updateNativeColor"
+      />
+      <Input
+        v-bind="omitComponentProps()"
+        :placeholder="componentProps.placeholder ?? '#1677ff'"
+        :value="colorPickerTextValue"
+        @update:value="updateColorValue"
+      />
+    </div>
+
+    <div v-else-if="isRenderComponent" class="schema-render-block">
+      {{ stringifyDisplayValue(renderPreviewValue) }}
+    </div>
+
+    <component
+      :is="dynamicComponent"
+      v-else-if="dynamicComponent"
+      style="width: 100%"
+      v-bind="dynamicBindProps"
+      v-on="dynamicBindEvents"
+    />
+
+    <div v-else-if="component === 'InputPassword' || isStrengthMeter" class="strength-meter-wrap">
+      <Input.Password
+        v-bind="componentProps"
+        :value="inputLikeValue"
+        @update:value="updateInput"
+      />
+      <div v-if="isStrengthMeter" class="strength-meter-panel">
+        <div class="strength-meter-track">
+          <div
+            class="strength-meter-bar"
+            :style="{ backgroundColor: strengthColor, width: `${strengthPercent}%` }"
+          />
+        </div>
+        <span class="strength-meter-label">{{ strengthLabel }}</span>
+      </div>
+    </div>
 
     <Input.TextArea
       v-else-if="isTextareaComponent"
@@ -1605,5 +2232,71 @@ function updateInputNumber(value?: null | number | string) {
 
 .sub-form-empty {
   color: rgb(100 116 139);
+}
+
+.schema-button-group {
+  width: 100%;
+}
+
+.color-picker-wrap {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.color-picker-native {
+  width: 64px;
+  height: 40px;
+  padding: 4px;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+}
+
+.schema-render-block {
+  min-height: 40px;
+  padding: 12px 14px;
+  border: 1px dashed rgb(203 213 225);
+  border-radius: 10px;
+  background: rgb(248 250 252);
+  color: rgb(71 85 105);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.strength-meter-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.strength-meter-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.strength-meter-track {
+  height: 8px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(226 232 240);
+}
+
+.strength-meter-bar {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
+.strength-meter-label {
+  min-width: 48px;
+  color: rgb(71 85 105);
+  font-size: 12px;
+  text-align: right;
 }
 </style>

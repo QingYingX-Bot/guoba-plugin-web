@@ -392,6 +392,8 @@ onMounted(() => {
               </Divider>
               <SchemaField
                 v-else
+                :model="configData"
+                :pluginName="plugin?.name"
                 :schema="schema"
                 :value="getConfigFieldValue(String(schema.field ?? ''))"
                 @update:value="setConfigFieldValue(String(schema.field ?? ''), $event)"

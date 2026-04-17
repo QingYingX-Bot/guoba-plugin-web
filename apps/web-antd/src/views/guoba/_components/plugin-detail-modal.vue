@@ -800,6 +800,8 @@ watch(pluginSchemaGroups, (groups) => {
             </Divider>
             <SchemaField
               v-else
+              :model="configData"
+              :pluginName="props.plugin?.name"
               :schema="schema"
               :value="getConfigFieldValue(String(schema.field ?? ''))"
               @update:value="setConfigFieldValue(String(schema.field ?? ''), $event)"

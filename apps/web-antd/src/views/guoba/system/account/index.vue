@@ -78,6 +78,10 @@ function isActionPending(userId: string) {
   return !!actionPendingMap.value[userId];
 }
 
+function toUserAccount(record: Record<string, any>) {
+  return record as GuobaUserAccount;
+}
+
 async function updateAccountStatus(record: GuobaUserAccount, action: 'disable' | 'enable') {
   const userId = String(record.userId || '').trim();
   if (!userId || isActionPending(userId)) {
@@ -152,7 +156,7 @@ onMounted(() => {
               <Button
                 danger
                 :disabled="record.canDisable === false || isActionPending(record.userId)"
-                @click="updateAccountStatus(record, 'disable')"
+                @click="updateAccountStatus(toUserAccount(record), 'disable')"
               >
                 禁用
               </Button>
@@ -161,7 +165,7 @@ onMounted(() => {
               <Button
                 type="primary"
                 :disabled="record.canEnable === false || isActionPending(record.userId)"
-                @click="updateAccountStatus(record, 'enable')"
+                @click="updateAccountStatus(toUserAccount(record), 'enable')"
               >
                 启用
               </Button>

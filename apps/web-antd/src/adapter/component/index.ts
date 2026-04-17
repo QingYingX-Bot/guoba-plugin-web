@@ -76,7 +76,11 @@ const RangePicker = defineAsyncComponent(() =>
   import('ant-design-vue/es/date-picker').then((res) => res.RangePicker),
 );
 const Rate = defineAsyncComponent(() => import('ant-design-vue/es/rate'));
+const Segmented = defineAsyncComponent(
+  () => import('ant-design-vue/es/segmented'),
+);
 const Select = defineAsyncComponent(() => import('ant-design-vue/es/select'));
+const Slider = defineAsyncComponent(() => import('ant-design-vue/es/slider'));
 const Space = defineAsyncComponent(() => import('ant-design-vue/es/space'));
 const Switch = defineAsyncComponent(() => import('ant-design-vue/es/switch'));
 const Textarea = defineAsyncComponent(() =>
@@ -564,6 +568,7 @@ const withPreviewUpload = () => {
 // 这里需要自行根据业务组件库进行适配，需要用到的组件都需要在这里类型说明
 export type ComponentType =
   | 'ApiCascader'
+  | 'ApiRadioGroup'
   | 'ApiSelect'
   | 'ApiTreeSelect'
   | 'AutoComplete'
@@ -583,7 +588,9 @@ export type ComponentType =
   | 'RadioGroup'
   | 'RangePicker'
   | 'Rate'
+  | 'Segmented'
   | 'Select'
+  | 'Slider'
   | 'Space'
   | 'Switch'
   | 'Textarea'
@@ -604,6 +611,10 @@ async function initComponentAdapter() {
       loadingSlot: 'suffixIcon',
       modelPropName: 'value',
       visibleEvent: 'onVisibleChange',
+    }),
+    ApiRadioGroup: withDefaultPlaceholder(ApiComponent, 'select', {
+      component: RadioGroup,
+      modelPropName: 'value',
     }),
     ApiSelect: withDefaultPlaceholder(ApiComponent, 'select', {
       component: Select,
@@ -646,7 +657,9 @@ async function initComponentAdapter() {
     RadioGroup,
     RangePicker,
     Rate,
+    Segmented,
     Select: withDefaultPlaceholder(Select, 'select'),
+    Slider,
     Space,
     Switch,
     Textarea: withDefaultPlaceholder(Textarea, 'input'),
