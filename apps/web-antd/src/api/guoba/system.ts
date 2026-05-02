@@ -1,13 +1,6 @@
 import { requestClient } from '#/api/request';
 
-import type { GuobaDashboardData, GuobaHomeData } from './types';
-
-/**
- * 获取首页统计数据
- */
-export async function getHomeDataApi() {
-  return requestClient.get<GuobaHomeData>('/home/data');
-}
+import type { GuobaDashboardData } from './types';
 
 /**
  * 获取仪表盘聚合数据

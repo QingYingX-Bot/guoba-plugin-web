@@ -230,7 +230,7 @@ function setConfigFieldValue(fieldPath: string, value: any) {
 }
 
 function goPluginsPage() {
-  router.push('/plugins');
+  router.push('/plugins/market');
 }
 
 async function loadPlugin() {

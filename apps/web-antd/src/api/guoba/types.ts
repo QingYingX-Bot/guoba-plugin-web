@@ -1,11 +1,5 @@
 import type { Recordable } from '@vben/types';
 
-export interface GuobaHomeData {
-  cookieCount: number;
-  friendCount: number;
-  groupCount: number;
-}
-
 export interface GuobaDashboardAccountItem {
   nickname: string;
   online: boolean;
@@ -111,6 +105,31 @@ export interface GuobaPlugin {
 }
 
 export type GuobaPlugins = GuobaPlugin[];
+
+export interface GuobaPluginRule {
+  className: string;
+  event: string;
+  functionName: string;
+  key: string;
+  log: boolean;
+  instanceDsc: string;
+  instanceName: string;
+  moduleFile: string;
+  moduleName: string;
+  name: string;
+  permission: string;
+  pluginDescription: string;
+  pluginFolder: string;
+  pluginKey: string;
+  pluginName: string;
+  pluginPackageName: string;
+  pluginTitle: string;
+  priority: number;
+  reg: string;
+  ruleIndex: number;
+}
+
+export type GuobaPluginRules = GuobaPluginRule[];
 
 export interface GuobaConfigCard {
   addBtnText?: string;

@@ -129,7 +129,7 @@ function openPluginDetail(plugin: GuobaPlugin) {
 }
 
 function openPluginsPage() {
-  router.push('/plugins');
+  router.push('/plugins/market');
 }
 
 async function loadData(force = false) {

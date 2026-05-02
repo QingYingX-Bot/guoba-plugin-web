@@ -17,10 +17,15 @@ import {
   Space,
   Table,
   Tabs,
+  Tag,
   message,
 } from 'ant-design-vue';
 
-import { installPluginApi, uninstallPluginApi } from '#/api';
+import {
+  installPluginApi,
+  installPluginBatchApi,
+  uninstallPluginApi,
+} from '#/api';
 import { useGuobaStore } from '#/store';
 import PluginDetailModal from '#/views/guoba/_components/plugin-detail-modal.vue';
 import PluginStatusTags from '#/views/guoba/_components/plugin-status-tags.vue';
@@ -40,6 +45,7 @@ const installAutoRestart = ref(true);
 const installPackageManager = ref('pnpm');
 const detailOpen = ref(false);
 const detailPlugin = ref<GuobaPlugin | null>(null);
+
 const pagination = reactive({
   current: 1,
   pageSize: 10,
@@ -136,12 +142,28 @@ const filteredPlugins = computed(() => {
   return data;
 });
 
-const rowSelection = computed(() => {
-  if (statusKey.value !== 'installed') {
-    return undefined;
-  }
+const selectedPlugins = computed(() => {
+  const selected = new Set(selectedRowKeys.value);
+  return plugins.value.filter((item) => selected.has(item.name));
+});
 
+const selectedInstallablePlugins = computed(() => {
+  return selectedPlugins.value.filter((item) => !item.installed && !!item.link);
+});
+
+const selectedUninstallablePlugins = computed(() => {
+  return selectedPlugins.value.filter((item) => {
+    return item.installed && item.name !== 'miao-plugin';
+  });
+});
+
+const rowSelection = computed(() => {
   return {
+    getCheckboxProps: (record: GuobaPlugin) => ({
+      disabled: statusKey.value === 'installed'
+        ? record.name === 'miao-plugin'
+        : !record.link,
+    }),
     onChange: (keys: (number | string)[]) => {
       selectedRowKeys.value = keys.map((item) => String(item));
     },
@@ -233,6 +255,51 @@ function installPlugin(plugin: Record<string, any>) {
   });
 }
 
+async function installBatchByLinks(links: string[]) {
+  if (links.length === 0) {
+    return;
+  }
+  actionLoading.value = `install-batch:${links.length}`;
+  try {
+    const result = await installPluginBatchApi(links, {
+      autoNpmInstall: installAutoNpm.value,
+      autoRestart: installAutoRestart.value,
+      packageManager: installPackageManager.value,
+    });
+    showInstallLogs(result?.logs);
+    if (result?.status === 'success') {
+      message.success(result.message || '批量安装成功');
+      if (installAutoRestart.value) {
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+      } else {
+        selectedRowKeys.value = [];
+        await loadPlugins(true);
+      }
+    } else {
+      message.error(result?.message || '批量安装存在失败项');
+      await loadPlugins(true);
+    }
+  } finally {
+    actionLoading.value = '';
+  }
+}
+
+function installBatch() {
+  const targets = selectedInstallablePlugins.value;
+  if (targets.length === 0) {
+    message.warning('请先选择可安装的插件');
+    return;
+  }
+  Modal.confirm({
+    content: `确认批量安装这 ${targets.length} 个插件吗？`,
+    okText: '确认安装',
+    title: '批量安装插件',
+    onOk: () => installBatchByLinks(targets.map((item) => item.link)),
+  });
+}
+
 async function uninstallByNames(names: string[]) {
   if (names.length === 0) {
     return;
@@ -266,18 +333,19 @@ function uninstallPlugin(plugin: Record<string, any>) {
 }
 
 function uninstallBatch() {
-  if (selectedRowKeys.value.length === 0) {
+  const targets = selectedUninstallablePlugins.value;
+  if (targets.length === 0) {
     message.warning('请先选择要卸载的插件');
     return;
   }
   Modal.confirm({
-    content: `确认批量卸载这 ${selectedRowKeys.value.length} 个插件吗？卸载后将自动重启。`,
+    content: `确认批量卸载这 ${targets.length} 个插件吗？卸载后将自动重启。`,
     okButtonProps: {
       danger: true,
     },
     okText: '确认卸载',
     title: '批量卸载插件',
-    onOk: () => uninstallByNames([...selectedRowKeys.value]),
+    onOk: () => uninstallByNames(targets.map((item) => item.name)),
   });
 }
 
@@ -337,7 +405,7 @@ watch(
 </script>
 
 <template>
-  <Page title="插件管理">
+  <Page title="插件市场">
     <template #description>
       插件列表来源：
       <a
@@ -349,61 +417,87 @@ watch(
     </template>
 
     <Card>
-      <Space class="mb-4" direction="vertical" style="width: 100%">
-        <Space style="width: 100%" wrap>
-          <Input
-            v-model:value="keyword"
-            allow-clear
-            placeholder="过滤正则：匹配标题/名称/说明"
-            style="width: 280px"
-          />
-          <Select
-            v-model:value="selectedAuthors"
-            allow-clear
-            mode="multiple"
-            placeholder="选择插件作者"
-            style="width: 300px"
-            :options="authorOptions"
-          />
-          <Button :loading="loading" @click="loadPlugins(true)">刷新</Button>
-        </Space>
+      <div class="plugin-panel-controls">
+        <div class="plugin-market-toolbar">
+          <div class="plugin-filterbar">
+            <Input
+              v-model:value="keyword"
+              allow-clear
+              placeholder="过滤正则：匹配标题/名称/说明"
+              class="plugin-filter-input"
+            />
+            <Select
+              v-model:value="selectedAuthors"
+              allow-clear
+              mode="multiple"
+              placeholder="选择插件作者"
+              class="plugin-author-select"
+              :options="authorOptions"
+            />
+            <Button :loading="loading" @click="loadPlugins(true)">刷新</Button>
+          </div>
 
-        <Tabs v-model:activeKey="statusKey" @change="onTabChange">
-          <Tabs.TabPane key="installed" tab="已安装" />
-          <Tabs.TabPane key="uninstalled" tab="未安装" />
-        </Tabs>
+          <div class="plugin-batchbar">
+            <Tag color="blue">已选 {{ selectedRowKeys.length }}</Tag>
+            <Button
+              v-if="statusKey === 'installed'"
+              danger
+              :disabled="selectedUninstallablePlugins.length === 0"
+              :loading="actionLoading.startsWith('uninstall:')"
+              @click="uninstallBatch"
+            >
+              批量卸载
+            </Button>
+            <Button
+              v-else
+              type="primary"
+              :disabled="selectedInstallablePlugins.length === 0"
+              :loading="actionLoading.startsWith('install-batch:')"
+              @click="installBatch"
+            >
+              批量安装
+            </Button>
+          </div>
+        </div>
 
-        <Space wrap>
-          <Input
-            v-model:value="customInstallLink"
-            allow-clear
-            placeholder="输入插件 Git 地址进行安装"
-            style="width: 400px"
-          />
-          <Button type="primary" @click="installCustomPlugin">
-            安装自定义插件
-          </Button>
-          <Select
-            v-model:value="installPackageManager"
-            :disabled="!installAutoNpm"
-            :options="packageManagerOptions"
-            style="width: 120px"
-          />
-          <Checkbox v-model:checked="installAutoNpm">
-            安装依赖
-          </Checkbox>
-          <Checkbox v-model:checked="installAutoRestart">
-            自动重启
-          </Checkbox>
-          <Button
-            v-if="statusKey === 'installed'"
-            danger
-            @click="uninstallBatch"
+        <div class="plugin-market-subbar">
+          <Tabs
+            v-model:activeKey="statusKey"
+            class="plugin-status-tabs"
+            @change="onTabChange"
           >
-            批量卸载（{{ selectedRowKeys.length }}）
-          </Button>
-        </Space>
-      </Space>
+            <Tabs.TabPane key="installed" tab="已安装" />
+            <Tabs.TabPane key="uninstalled" tab="未安装" />
+          </Tabs>
+
+          <div
+            v-if="statusKey === 'uninstalled'"
+            class="plugin-installbar"
+          >
+            <Input
+              v-model:value="customInstallLink"
+              allow-clear
+              placeholder="输入插件 Git 地址进行安装"
+              class="plugin-install-input"
+            />
+            <Button type="primary" @click="installCustomPlugin">
+              安装自定义插件
+            </Button>
+            <Select
+              v-model:value="installPackageManager"
+              :disabled="!installAutoNpm"
+              :options="packageManagerOptions"
+              class="plugin-package-select"
+            />
+            <Checkbox v-model:checked="installAutoNpm">
+              安装依赖
+            </Checkbox>
+            <Checkbox v-model:checked="installAutoRestart">
+              自动重启
+            </Checkbox>
+          </div>
+        </div>
+      </div>
 
       <Table
         :columns="columns"
@@ -493,5 +587,97 @@ watch(
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.plugin-panel-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.plugin-market-toolbar,
+.plugin-market-subbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plugin-filterbar,
+.plugin-batchbar,
+.plugin-installbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.plugin-filterbar {
+  flex: 1 1 520px;
+  min-width: 0;
+}
+
+.plugin-batchbar {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.plugin-installbar {
+  flex: 1 1 620px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.plugin-status-tabs {
+  flex: 0 0 auto;
+}
+
+:deep(.plugin-status-tabs .ant-tabs-nav) {
+  margin: 0;
+}
+
+:deep(.plugin-status-tabs .ant-tabs-nav::before) {
+  border-bottom: 0;
+}
+
+.plugin-filter-input {
+  width: 280px;
+}
+
+.plugin-author-select {
+  width: 300px;
+}
+
+.plugin-install-input {
+  flex: 1 1 320px;
+  max-width: 520px;
+  min-width: 240px;
+}
+
+.plugin-package-select {
+  width: 120px;
+}
+
+@media (max-width: 900px) {
+  .plugin-market-toolbar,
+  .plugin-market-subbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .plugin-filterbar,
+  .plugin-batchbar,
+  .plugin-installbar,
+  .plugin-filter-input,
+  .plugin-author-select,
+  .plugin-install-input {
+    width: 100%;
+  }
+
+  .plugin-batchbar,
+  .plugin-installbar {
+    justify-content: flex-start;
+  }
 }
 </style>

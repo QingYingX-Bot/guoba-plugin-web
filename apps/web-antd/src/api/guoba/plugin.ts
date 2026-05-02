@@ -3,7 +3,7 @@ import type { Recordable } from '@vben/types';
 import { requestClient } from '#/api/request';
 import { deserializeGuobaSchemaValue } from '#/utils/guoba-schema';
 
-import type { GuobaInstallResult, GuobaPlugins } from './types';
+import type { GuobaInstallResult, GuobaPluginRules, GuobaPlugins } from './types';
 
 /**
  * 获取插件列表
@@ -13,6 +13,13 @@ export async function getPluginsApi(force = false) {
     params: { force },
   });
   return deserializeGuobaSchemaValue(result);
+}
+
+/**
+ * 获取当前运行时已加载的功能规则
+ */
+export async function getPluginRulesApi() {
+  return requestClient.get<GuobaPluginRules>('/plugin/rules');
 }
 
 /**
@@ -37,6 +44,23 @@ export async function installPluginApi(
 ) {
   return requestClient.put<GuobaInstallResult>('/plugin/install', {
     link,
+    ...options,
+  });
+}
+
+/**
+ * 批量安装插件
+ */
+export async function installPluginBatchApi(
+  links: string[],
+  options?: {
+    autoNpmInstall?: boolean;
+    autoRestart?: boolean;
+    packageManager?: string;
+  },
+) {
+  return requestClient.put<GuobaInstallResult>('/plugin/install-batch', {
+    links,
     ...options,
   });
 }
