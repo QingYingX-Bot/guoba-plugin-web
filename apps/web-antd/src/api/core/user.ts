@@ -13,6 +13,11 @@ type GuobaUserInfo = Omit<UserInfo, 'roles'> & {
   roles?: GuobaRole[];
 };
 
+export interface GuobaUserProfile {
+  avatar?: string;
+  displayName?: string;
+}
+
 export interface GuobaUserAccount {
   adapterId?: string;
   adapterName?: string;
@@ -57,6 +62,20 @@ export async function getUserInfoApi() {
  */
 export async function getUserListApi() {
   return requestClient.get<GuobaUserAccount[]>('/user/list');
+}
+
+/**
+ * 获取面板资料设置
+ */
+export async function getUserProfileApi() {
+  return requestClient.get<GuobaUserProfile>('/user/profile');
+}
+
+/**
+ * 保存面板资料设置
+ */
+export async function updateUserProfileApi(data: GuobaUserProfile) {
+  return requestClient.put<GuobaUserProfile>('/user/profile', data);
 }
 
 /**
