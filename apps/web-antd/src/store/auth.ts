@@ -16,6 +16,8 @@ import {
   loginApi,
   loginCodeRequestApi,
   logoutApi,
+  passwordLoginApi,
+  passwordLoginStatusApi,
 } from '#/api';
 import { $t } from '#/locales';
 
@@ -36,47 +38,68 @@ export const useAuthStore = defineStore('auth', () => {
     onSuccess?: () => Promise<void> | void,
   ) {
     // 异步处理用户登录操作并获取 accessToken
-    let userInfo: null | UserInfo = null;
     try {
       loginLoading.value = true;
       const code = String(params?.code ?? '').trim();
       const { token } = await loginApi({ code });
-
-      // 如果成功获取到 accessToken
-      if (token) {
-        accessStore.setAccessToken(token);
-
-        // 获取用户信息并存储到 accessStore 中
-        const [fetchUserInfoResult, accessCodes] = await Promise.all([
-          fetchUserInfo(),
-          getAccessCodesApi(),
-        ]);
-
-        userInfo = fetchUserInfoResult;
-
-        userStore.setUserInfo(userInfo);
-        accessStore.setAccessCodes(accessCodes);
-
-        if (accessStore.loginExpired) {
-          accessStore.setLoginExpired(false);
-        } else {
-          onSuccess
-            ? await onSuccess?.()
-            : await router.push(
-                userInfo.homePath || preferences.app.defaultHomePath,
-              );
-        }
-
-        if (userInfo?.realName) {
-          notification.success({
-            description: `${$t('authentication.loginSuccessDesc')}:${userInfo?.realName}`,
-            duration: 3,
-            message: $t('authentication.loginSuccess'),
-          });
-        }
-      }
+      return completeLogin(token, onSuccess);
     } finally {
       loginLoading.value = false;
+    }
+  }
+
+  async function authPasswordLogin(
+    params: Recordable<any>,
+    onSuccess?: () => Promise<void> | void,
+  ) {
+    try {
+      loginLoading.value = true;
+      const password = String(params?.password ?? '');
+      const remember = params?.remember === true;
+      const { token } = await passwordLoginApi({ password, remember });
+      return completeLogin(token, onSuccess);
+    } finally {
+      loginLoading.value = false;
+    }
+  }
+
+  async function completeLogin(
+    token: string,
+    onSuccess?: () => Promise<void> | void,
+  ) {
+    let userInfo: null | UserInfo = null;
+    // 如果成功获取到 accessToken
+    if (token) {
+      accessStore.setAccessToken(token);
+
+      // 获取用户信息并存储到 accessStore 中
+      const [fetchUserInfoResult, accessCodes] = await Promise.all([
+        fetchUserInfo(),
+        getAccessCodesApi(),
+      ]);
+
+      userInfo = fetchUserInfoResult;
+
+      userStore.setUserInfo(userInfo);
+      accessStore.setAccessCodes(accessCodes);
+
+      if (accessStore.loginExpired) {
+        accessStore.setLoginExpired(false);
+      } else {
+        onSuccess
+          ? await onSuccess?.()
+          : await router.push(
+              userInfo.homePath || preferences.app.defaultHomePath,
+            );
+      }
+
+      if (userInfo?.realName) {
+        notification.success({
+          description: `${$t('authentication.loginSuccessDesc')}:${userInfo?.realName}`,
+          duration: 3,
+          message: $t('authentication.loginSuccess'),
+        });
+      }
     }
 
     return {
@@ -114,6 +137,10 @@ export const useAuthStore = defineStore('auth', () => {
     await loginCodeRequestApi();
   }
 
+  async function getPasswordLoginStatus() {
+    return passwordLoginStatusApi();
+  }
+
   function $reset() {
     loginLoading.value = false;
   }
@@ -121,7 +148,9 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     $reset,
     authLogin,
+    authPasswordLogin,
     fetchUserInfo,
+    getPasswordLoginStatus,
     loginLoading,
     logout,
     requestLoginCode,

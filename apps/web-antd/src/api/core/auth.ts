@@ -5,8 +5,18 @@ export namespace AuthApi {
     code: string;
   }
 
+  export interface PasswordLoginParams {
+    password: string;
+    remember?: boolean;
+  }
+
   export interface LoginResult {
     token: string;
+  }
+
+  export interface PasswordLoginStatus {
+    hasPassword: boolean;
+    rememberDays: number;
   }
 
   export interface PermCodeResult {
@@ -20,6 +30,25 @@ export namespace AuthApi {
  */
 export async function loginApi(data: AuthApi.LoginParams) {
   return requestClient.post<AuthApi.LoginResult>('/login/code/check', data);
+}
+
+/**
+ * 固定密码登录状态
+ */
+export async function passwordLoginStatusApi() {
+  return requestClient.get<AuthApi.PasswordLoginStatus>(
+    '/login/password/status',
+  );
+}
+
+/**
+ * 固定密码登录
+ */
+export async function passwordLoginApi(data: AuthApi.PasswordLoginParams) {
+  return requestClient.post<AuthApi.LoginResult>(
+    '/login/password/check',
+    data,
+  );
 }
 
 /**
