@@ -5,16 +5,18 @@ import type {
 } from '#/api/guoba';
 import type { Recordable } from '@vben/types';
 
-import { computed, ref, watch } from 'vue';
+import { computed, h, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import {
   Button,
+  Checkbox,
   Descriptions,
   Divider,
   Empty,
   Form,
   Modal,
+  Select,
   Skeleton,
   Space,
   Tabs,
@@ -69,6 +71,18 @@ const readmeHtml = computed(() => {
 });
 
 const actionLoading = ref('');
+const installAutoNpm = ref(true);
+const installAutoRestart = ref(true);
+const installPackageManager = ref('pnpm');
+
+const packageManagerOptions = [
+  { label: '自动', value: 'auto' },
+  { label: 'pnpm', value: 'pnpm' },
+  { label: 'npm', value: 'npm' },
+  { label: 'yarn', value: 'yarn' },
+  { label: 'bun', value: 'bun' },
+  { label: '跳过', value: 'none' },
+];
 
 const canEditConfig = computed(() => {
   return !!(props.plugin?.installed && props.plugin?.hasConfig);
@@ -599,21 +613,25 @@ function installPlugin() {
     return;
   }
   Modal.confirm({
-    content: `确认安装插件 ${props.plugin.title || props.plugin.name} 吗？安装后会自动安装依赖并重启。`,
+    content: `确认安装插件 ${props.plugin.title || props.plugin.name} 吗？`,
     okText: '确认安装',
     title: '安装插件',
     async onOk() {
       actionLoading.value = 'install';
       try {
         const result = await installPluginApi(props.plugin!.link, {
-          autoNpmInstall: true,
-          autoRestart: true,
+          autoNpmInstall: installAutoNpm.value,
+          autoRestart: installAutoRestart.value,
+          packageManager: installPackageManager.value,
         });
+        showInstallLogs(result?.logs);
         if (result?.status === 'success') {
           message.success(result.message || '安装成功，正在准备重启');
-          setTimeout(() => {
-            window.location.reload();
-          }, 3000);
+          if (installAutoRestart.value) {
+            setTimeout(() => {
+              window.location.reload();
+            }, 3000);
+          }
         } else {
           message.error(result?.message || '安装失败');
         }
@@ -621,6 +639,18 @@ function installPlugin() {
         actionLoading.value = '';
       }
     },
+  });
+}
+
+function showInstallLogs(logs?: string[]) {
+  if (!logs?.length) {
+    return;
+  }
+  Modal.info({
+    content: () => h('pre', { class: 'install-log-output' }, logs.join('\n\n')),
+    okText: '关闭',
+    title: '安装日志',
+    width: 760,
   });
 }
 
@@ -704,6 +734,24 @@ watch(pluginSchemaGroups, (groups) => {
     <template #footer>
       <div class="plugin-modal-footer">
         <div>
+          <Space
+            v-if="tabKey === 'desc' && plugin && !plugin.installed"
+            class="install-options"
+            wrap
+          >
+            <Select
+              v-model:value="installPackageManager"
+              :disabled="!installAutoNpm"
+              :options="packageManagerOptions"
+              style="width: 120px"
+            />
+            <Checkbox v-model:checked="installAutoNpm">
+              安装依赖
+            </Checkbox>
+            <Checkbox v-model:checked="installAutoRestart">
+              自动重启
+            </Checkbox>
+          </Space>
           <Button
             v-if="tabKey === 'desc' && plugin && !plugin.installed"
             type="primary"
@@ -926,5 +974,17 @@ watch(pluginSchemaGroups, (groups) => {
   margin: 1em 0;
   border: 0;
   border-top: 1px solid #e5e7eb;
+}
+
+.install-options {
+  margin-right: 12px;
+}
+
+.install-log-output {
+  max-height: 460px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

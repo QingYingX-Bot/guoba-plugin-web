@@ -2,13 +2,14 @@
 import type { GuobaPlugin } from '#/api/guoba';
 import type { TableColumnsType } from 'ant-design-vue';
 
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
 import {
   Button,
   Card,
+  Checkbox,
   Empty,
   Input,
   Modal,
@@ -34,6 +35,9 @@ const selectedAuthors = ref<string[]>([]);
 const selectedRowKeys = ref<string[]>([]);
 const customInstallLink = ref('');
 const actionLoading = ref('');
+const installAutoNpm = ref(true);
+const installAutoRestart = ref(true);
+const installPackageManager = ref('pnpm');
 const detailOpen = ref(false);
 const detailPlugin = ref<GuobaPlugin | null>(null);
 const pagination = reactive({
@@ -82,6 +86,15 @@ const columns: TableColumnsType<GuobaPlugin> = [
     title: '操作',
     width: 180,
   },
+];
+
+const packageManagerOptions = [
+  { label: '自动', value: 'auto' },
+  { label: 'pnpm', value: 'pnpm' },
+  { label: 'npm', value: 'npm' },
+  { label: 'yarn', value: 'yarn' },
+  { label: 'bun', value: 'bun' },
+  { label: '跳过', value: 'none' },
 ];
 
 const authorOptions = computed(() => {
@@ -173,14 +186,20 @@ async function installByLink(link: string) {
   actionLoading.value = `install:${installLink}`;
   try {
     const result = await installPluginApi(installLink, {
-      autoNpmInstall: true,
-      autoRestart: true,
+      autoNpmInstall: installAutoNpm.value,
+      autoRestart: installAutoRestart.value,
+      packageManager: installPackageManager.value,
     });
+    showInstallLogs(result?.logs);
     if (result?.status === 'success') {
       message.success(result.message || '安装成功，正在准备重启');
-      setTimeout(() => {
-        window.location.reload();
-      }, 3000);
+      if (installAutoRestart.value) {
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+      } else {
+        await loadPlugins(true);
+      }
     } else {
       message.error(result?.message || '安装失败');
     }
@@ -189,13 +208,25 @@ async function installByLink(link: string) {
   }
 }
 
+function showInstallLogs(logs?: string[]) {
+  if (!logs?.length) {
+    return;
+  }
+  Modal.info({
+    content: () => h('pre', { class: 'install-log-output' }, logs.join('\n\n')),
+    okText: '关闭',
+    title: '安装日志',
+    width: 760,
+  });
+}
+
 function installPlugin(plugin: Record<string, any>) {
   if (!plugin.link) {
     message.warning('该插件没有提供 Git 地址，无法一键安装');
     return;
   }
   Modal.confirm({
-    content: `确认安装插件 ${plugin.title || plugin.name} 吗？安装后会自动安装依赖并重启。`,
+    content: `确认安装插件 ${plugin.title || plugin.name} 吗？`,
     okText: '确认安装',
     title: '安装插件',
     onOk: () => installByLink(plugin.link),
@@ -352,6 +383,18 @@ watch(
           <Button type="primary" @click="installCustomPlugin">
             安装自定义插件
           </Button>
+          <Select
+            v-model:value="installPackageManager"
+            :disabled="!installAutoNpm"
+            :options="packageManagerOptions"
+            style="width: 120px"
+          />
+          <Checkbox v-model:checked="installAutoNpm">
+            安装依赖
+          </Checkbox>
+          <Checkbox v-model:checked="installAutoRestart">
+            自动重启
+          </Checkbox>
           <Button
             v-if="statusKey === 'installed'"
             danger
@@ -442,3 +485,13 @@ watch(
     />
   </Page>
 </template>
+
+<style scoped>
+.install-log-output {
+  max-height: 460px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+</style>

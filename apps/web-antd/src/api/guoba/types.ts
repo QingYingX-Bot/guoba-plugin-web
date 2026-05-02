@@ -133,6 +133,7 @@ export interface GuobaConfigTab {
 }
 
 export interface GuobaInstallResult {
+  logs?: string[];
   message: string;
   status: 'error' | 'success';
 }

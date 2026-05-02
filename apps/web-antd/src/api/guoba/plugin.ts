@@ -32,6 +32,7 @@ export async function installPluginApi(
   options?: {
     autoNpmInstall?: boolean;
     autoRestart?: boolean;
+    packageManager?: string;
   },
 ) {
   return requestClient.put<GuobaInstallResult>('/plugin/install', {
