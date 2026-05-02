@@ -3,6 +3,7 @@ import type { GuobaConfigCard, GuobaConfigTab } from '#/api/guoba';
 import type { Recordable } from '@vben/types';
 
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
@@ -16,7 +17,6 @@ import {
   Modal,
   Skeleton,
   Space,
-  Tabs,
   Tag,
   message,
 } from 'ant-design-vue';
@@ -43,14 +43,41 @@ interface KeyFormEntry {
 }
 
 const tabs = ref<GuobaConfigTab[]>([]);
-const activeKey = ref('');
 const pageLoading = ref(true);
+const route = useRoute();
 
 const cardStates = reactive<Record<string, CardState>>({});
 const normalCardValues = reactive<Record<string, Recordable<any>>>({});
 const keyFormEntries = reactive<Record<string, KeyFormEntry[]>>({});
 const keyFormCollapsed = reactive<Record<string, Record<string, boolean>>>({});
 const arrayCardValues = reactive<Record<string, any[]>>({});
+
+const routeConfigKey = computed(() => {
+  const value = route.params.key;
+  const paramKey = Array.isArray(value) ? value[0] : value;
+  const pathKey = route.path.startsWith('/config/@/')
+    ? route.path.slice('/config/@/'.length)
+    : '';
+  const key = paramKey || pathKey;
+
+  if (!key) {
+    return '';
+  }
+
+  try {
+    return decodeURIComponent(key);
+  } catch {
+    return key;
+  }
+});
+
+const activeKey = computed(() => {
+  const key = routeConfigKey.value;
+  if (key && tabs.value.some((item) => item.key === key)) {
+    return key;
+  }
+  return tabs.value[0]?.key ?? '';
+});
 
 const activeTab = computed(() => {
   return tabs.value.find((item) => item.key === activeKey.value);
@@ -385,7 +412,6 @@ async function loadTabs() {
   try {
     const result = await getConfigTabsApi();
     tabs.value = result ?? [];
-    activeKey.value = tabs.value[0]?.key ?? '';
   } finally {
     pageLoading.value = false;
   }
@@ -544,18 +570,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <Page description="配置管理（可视化）" title="配置管理">
+  <Page
+    :description="activeTab?.title ? '配置管理' : '配置管理（可视化）'"
+    :title="activeTab?.title || '配置管理'"
+  >
     <Skeleton v-if="pageLoading" active />
 
     <template v-else>
-      <Tabs v-model:activeKey="activeKey">
-        <Tabs.TabPane
-          v-for="tab in tabs"
-          :key="tab.key"
-          :tab="tab.title"
-        />
-      </Tabs>
-
       <template v-if="activeCards.length > 0">
         <Card
           v-for="card in activeCards"
@@ -736,7 +757,6 @@ onMounted(async () => {
 }
 
 :deep(.ant-skeleton),
-:deep(.ant-tabs),
 :deep(.ant-empty) {
   max-width: 1440px;
   margin-right: auto;

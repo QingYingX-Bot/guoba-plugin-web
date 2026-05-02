@@ -164,7 +164,7 @@ const pluginGroups = computed<PluginGroup[]>(() => {
   const map = new Map<string, GuobaPluginRule[]>();
 
   filteredRules.value.forEach((rule) => {
-    const key = getPluginName(rule);
+    const key = getPluginRouteKey(rule);
     const rules = map.get(key) ?? [];
     rules.push(rule);
     map.set(key, rules);
@@ -174,7 +174,7 @@ const pluginGroups = computed<PluginGroup[]>(() => {
     .map(([key, rules]) => ({
       key,
       moduleCount: new Set(rules.map((item) => getModuleKey(item))).size,
-      name: key,
+      name: getPluginName(rules[0]!),
       priorityRange: getPriorityRange(rules),
       ruleCount: rules.length,
       rules,
@@ -205,7 +205,7 @@ const pluginScopedRules = computed(() => {
   if (routePluginKey.value === 'all') {
     return filteredRules.value;
   }
-  return filteredRules.value.filter((item) => getPluginName(item) === routePluginKey.value);
+  return filteredRules.value.filter((item) => getPluginRouteKey(item) === routePluginKey.value);
 });
 
 const moduleGroups = computed<ModuleGroup[]>(() => {
@@ -370,8 +370,12 @@ function getPluginName(rule: GuobaPluginRule) {
   return rule.pluginPackageName || rule.pluginName || rule.pluginFolder || 'unknown';
 }
 
+function getPluginRouteKey(rule: GuobaPluginRule) {
+  return rule.pluginMenuName || rule.pluginFolder || getPluginName(rule);
+}
+
 function getModuleKey(rule: GuobaPluginRule) {
-  return `${getPluginName(rule)}::${rule.moduleFile || rule.pluginKey || 'index.js'}`;
+  return `${getPluginRouteKey(rule)}::${rule.moduleFile || rule.pluginKey || 'index.js'}`;
 }
 
 function getFeatureKey(rule: GuobaPluginRule) {

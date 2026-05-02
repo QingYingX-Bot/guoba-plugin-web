@@ -121,6 +121,7 @@ export interface GuobaPluginRule {
   pluginDescription: string;
   pluginFolder: string;
   pluginKey: string;
+  pluginMenuName?: string;
   pluginName: string;
   pluginPackageName: string;
   pluginTitle: string;
