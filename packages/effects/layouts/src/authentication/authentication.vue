@@ -7,7 +7,6 @@ import { preferences, usePreferences } from '@vben/preferences';
 
 import { Copyright } from '../basic/copyright';
 import AuthenticationFormView from './form.vue';
-import SloganIcon from './icons/slogan.vue';
 import Toolbar from './toolbar.vue';
 
 interface Props {
@@ -109,29 +108,7 @@ const logoSrc = computed(() => {
         class="absolute inset-0 size-full bg-background-deep dark:bg-[#070709]"
       >
         <div class="login-background absolute top-0 left-0 size-full"></div>
-        <div
-          :key="authPanelLeft ? 'left' : authPanelRight ? 'right' : 'center'"
-          class="mr-20 flex-col-center h-full"
-          :class="{
-            'enter-x': authPanelLeft,
-            '-enter-x': authPanelRight,
-          }"
-        >
-          <template v-if="sloganImage">
-            <img
-              :alt="appName"
-              :src="sloganImage"
-              class="h-64 w-2/5 animate-float"
-            />
-          </template>
-          <SloganIcon v-else :alt="appName" class="h-64 w-2/5 animate-float" />
-          <div class="text-1xl mt-6 font-sans text-foreground lg:text-2xl">
-            {{ pageTitle }}
-          </div>
-          <div class="mt-2 dark:text-muted-foreground">
-            {{ pageDescription }}
-          </div>
-        </div>
+        <slot name="brand-panel"></slot>
       </div>
     </div>
 

@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import type { VbenFormSchema } from '@vben/common-ui';
-import type { Recordable } from '@vben/types';
 
-import { computed, h, onMounted, ref } from 'vue';
+import { computed, h, onMounted, reactive, ref } from 'vue';
 
-import { AuthenticationCodeLogin, AuthenticationLogin, z } from '@vben/common-ui';
+import { useVbenForm, VbenButton, z } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 import { message } from 'ant-design-vue';
 
@@ -15,21 +14,31 @@ defineOptions({ name: 'CodeLogin' });
 const authStore = useAuthStore();
 const CODE_LENGTH = 16;
 const pageTitle = '锅巴管理登录';
-const pageSubTitle = '点击获取验证码，并在机器人控制台日志中查看 16 位字母数字验证码后输入';
 const loginMode = ref<'code' | 'password'>('password');
 const passwordLoginStatus = ref({
   hasPassword: false,
   rememberDays: 7,
 });
 
+const modeTabs = [
+  {
+    description: '使用配置的固定密码进入管理面板',
+    label: '密码登录',
+    value: 'password',
+  },
+  {
+    description: '从机器人控制台日志获取一次性验证码',
+    label: '验证码登录',
+    value: 'code',
+  },
+] as const;
+
+const activeMode = computed(() => {
+  return modeTabs.find((item) => item.value === loginMode.value) ?? modeTabs[0];
+});
+
 const passwordLoginReady = computed(() => {
   return passwordLoginStatus.value.hasPassword;
-});
-const passwordLoginTip = computed(() => {
-  if (passwordLoginReady.value) {
-    return '';
-  }
-  return '固定登录密码未设置，请先使用验证码登录后在锅巴配置中设置密码';
 });
 
 async function handleSendCode() {
@@ -46,7 +55,7 @@ async function handleSendCode() {
   }
 }
 
-const formSchema = computed((): VbenFormSchema[] => {
+const codeFormSchema = computed((): VbenFormSchema[] => {
   return [
     {
       component: 'VbenPinInput',
@@ -94,6 +103,28 @@ const passwordFormSchema = computed((): VbenFormSchema[] => {
   ];
 });
 
+const [PasswordForm, passwordFormApi] = useVbenForm(
+  reactive({
+    commonConfig: {
+      hideLabel: true,
+      hideRequiredMark: true,
+    },
+    schema: passwordFormSchema,
+    showDefaultActions: false,
+  }),
+);
+
+const [CodeForm, codeFormApi] = useVbenForm(
+  reactive({
+    commonConfig: {
+      hideLabel: true,
+      hideRequiredMark: true,
+    },
+    schema: codeFormSchema,
+    showDefaultActions: false,
+  }),
+);
+
 async function refreshPasswordLoginStatus() {
   try {
     const status = await authStore.getPasswordLoginStatus();
@@ -111,18 +142,18 @@ async function refreshPasswordLoginStatus() {
 
 onMounted(refreshPasswordLoginStatus);
 
-/**
- * 异步处理登录操作
- * Asynchronously handle the login process
- * @param values 登录表单数据
- */
-async function handleLogin(values: Recordable<any>) {
+async function handleCodeLogin() {
+  const { valid } = await codeFormApi.validate();
+  const values = await codeFormApi.getValues();
+  if (!valid) {
+    return;
+  }
   await authStore.authLogin({
     code: String(values.code ?? '').trim().toLowerCase(),
   });
 }
 
-async function handlePasswordLogin(values: Recordable<any>) {
+async function handlePasswordLogin() {
   if (!passwordLoginReady.value) {
     await refreshPasswordLoginStatus();
     if (!passwordLoginReady.value) {
@@ -130,65 +161,263 @@ async function handlePasswordLogin(values: Recordable<any>) {
       return;
     }
   }
+
+  const { valid } = await passwordFormApi.validate();
+  const values = await passwordFormApi.getValues();
+  if (!valid) {
+    return;
+  }
+
   await authStore.authPasswordLogin({
     password: String(values.password ?? ''),
     remember: values.remember === true,
   });
 }
+
+function switchLoginMode(mode: 'code' | 'password') {
+  if (loginMode.value === mode) {
+    return;
+  }
+  loginMode.value = mode;
+}
+
+async function handleSubmit() {
+  if (loginMode.value === 'password') {
+    await handlePasswordLogin();
+    return;
+  }
+  await handleCodeLogin();
+}
 </script>
 
 <template>
-  <div>
-    <div class="mb-4 grid grid-cols-2 gap-2">
-      <button
-        class="rounded-md border px-3 py-2 text-sm transition-colors"
-        :class="loginMode === 'password' ? 'border-primary text-primary' : 'border-border text-muted-foreground'"
-        type="button"
-        @click="loginMode = 'password'"
-      >
-        密码登录
-      </button>
-      <button
-        class="rounded-md border px-3 py-2 text-sm transition-colors"
-        :class="loginMode === 'code' ? 'border-primary text-primary' : 'border-border text-muted-foreground'"
-        type="button"
-        @click="loginMode = 'code'"
-      >
-        验证码登录
-      </button>
+  <section class="guoba-login-panel" @keydown.enter.prevent="handleSubmit">
+    <div class="guoba-login-heading">
+      <h1>{{ pageTitle }}</h1>
+      <Transition name="guoba-fade" mode="out-in">
+        <p :key="activeMode.value" class="guoba-login-description">
+          {{ activeMode.description }}
+        </p>
+      </Transition>
     </div>
 
     <div
-      v-if="loginMode === 'password' && passwordLoginTip"
-      class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700"
+      class="guoba-mode-switch"
+      :class="{ 'is-code': loginMode === 'code' }"
+      role="tablist"
+      aria-label="登录方式"
     >
-      {{ passwordLoginTip }}
+      <span class="guoba-mode-indicator" aria-hidden="true"></span>
+      <button
+        v-for="tab in modeTabs"
+        :key="tab.value"
+        class="guoba-mode-button"
+        :class="{ 'is-active': loginMode === tab.value }"
+        role="tab"
+        :aria-selected="loginMode === tab.value"
+        type="button"
+        @click="switchLoginMode(tab.value)"
+      >
+        {{ tab.label }}
+      </button>
     </div>
 
-    <AuthenticationLogin
-      v-if="loginMode === 'password'"
-      :form-schema="passwordFormSchema"
-      :loading="authStore.loginLoading"
-      :show-code-login="false"
-      :show-forget-password="false"
-      :show-qrcode-login="false"
-      :show-register="false"
-      :show-remember-me="false"
-      :show-third-party-login="false"
-      sub-title="使用配置的固定密码登录锅巴管理面板"
-      submit-button-text="登录"
-      :title="pageTitle"
-      @submit="handlePasswordLogin"
-    />
+    <div class="guoba-login-body">
+      <div class="guoba-login-track" :class="{ 'is-code': loginMode === 'code' }">
+        <div class="guoba-login-content guoba-password-content" aria-hidden="false">
+          <PasswordForm />
+        </div>
 
-    <AuthenticationCodeLogin
-      v-else
-      :form-schema="formSchema"
+        <div class="guoba-login-content guoba-code-content" aria-hidden="false">
+          <CodeForm />
+        </div>
+      </div>
+    </div>
+
+    <VbenButton
+      :class="{
+        'cursor-wait': authStore.loginLoading,
+      }"
       :loading="authStore.loginLoading"
-      :sub-title="pageSubTitle"
-      :show-back="false"
-      :title="pageTitle"
-      @submit="handleLogin"
-    />
-  </div>
+      aria-label="login"
+      class="guoba-login-submit"
+      @click="handleSubmit"
+    >
+      登录
+    </VbenButton>
+  </section>
 </template>
+
+<style scoped>
+.guoba-login-panel {
+  width: min(100%, 448px);
+}
+
+.guoba-login-heading {
+  margin-bottom: 18px;
+}
+
+.guoba-login-heading h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.16;
+  color: hsl(var(--foreground));
+  letter-spacing: 0;
+}
+
+.guoba-login-description {
+  min-height: 22px;
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+
+.guoba-mode-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  padding: 3px;
+  margin-bottom: 24px;
+  background: hsl(var(--muted) / 0.48);
+  border: 1px solid hsl(var(--border) / 0.68);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.guoba-mode-indicator {
+  position: absolute;
+  inset: 3px auto 3px 3px;
+  width: calc((100% - 6px) / 2);
+  background: hsl(var(--background));
+  border-radius: 6px;
+  box-shadow:
+    0 1px 2px hsl(var(--foreground) / 0.08),
+    0 8px 22px hsl(var(--foreground) / 0.06);
+  transform: translateX(0);
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms ease;
+  will-change: transform;
+}
+
+.guoba-mode-switch.is-code .guoba-mode-indicator {
+  transform: translateX(100%);
+}
+
+.guoba-mode-button {
+  position: relative;
+  z-index: 1;
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  border-radius: 6px;
+  outline: none;
+  transition:
+    color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.guoba-mode-button:hover {
+  color: hsl(var(--foreground));
+}
+
+.guoba-mode-button.is-active {
+  color: hsl(var(--foreground));
+}
+
+.guoba-login-body {
+  position: relative;
+  height: 94px;
+  overflow: hidden;
+}
+
+.guoba-login-track {
+  display: flex;
+  width: 200%;
+  height: 100%;
+  transform: translateX(0);
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.guoba-login-track.is-code {
+  transform: translateX(-50%);
+}
+
+.guoba-login-content {
+  flex: 0 0 50%;
+  width: 100%;
+  padding-right: 1px;
+}
+
+.guoba-password-content {
+  padding-top: 0;
+}
+
+.guoba-code-content {
+  padding-top: 0;
+}
+
+.guoba-login-submit {
+  width: 100%;
+  height: 42px;
+  margin-top: 20px;
+  border-radius: 8px;
+}
+
+.guoba-fade-enter-active,
+.guoba-fade-leave-active {
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.guoba-fade-enter-from,
+.guoba-fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+:deep(.form-field) {
+  margin-bottom: 18px;
+}
+
+:deep(.form-field:last-child) {
+  margin-bottom: 0;
+}
+
+:deep(.ant-input-affix-wrapper),
+:deep(.ant-input) {
+  min-height: 40px;
+  border-radius: 8px;
+}
+
+:deep([data-slot='pin-input-root']) {
+  width: 100%;
+}
+
+:deep([data-slot='pin-input-root'] > div) {
+  width: 100%;
+}
+
+:deep([data-slot='pin-input-root'] button) {
+  height: 40px;
+  border-radius: 8px;
+}
+
+@media (max-width: 520px) {
+  .guoba-login-panel {
+    width: 100%;
+  }
+
+  .guoba-login-heading h1 {
+    font-size: 30px;
+  }
+}
+</style>

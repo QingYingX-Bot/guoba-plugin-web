@@ -1,9 +1,13 @@
 import type { Preferences } from './types';
 
+const publicBase = import.meta.env.BASE_URL || '/';
+const normalizedPublicBase = publicBase.endsWith('/') ? publicBase : `${publicBase}/`;
+const appLogo = `${normalizedPublicBase}favicon.png`;
+
 const defaultPreferences: Preferences = {
   app: {
     accessMode: 'frontend',
-    authPageLayout: 'panel-right',
+    authPageLayout: 'panel-left',
     checkUpdatesInterval: 1,
     colorGrayMode: false,
     colorWeakMode: false,
@@ -28,7 +32,7 @@ const defaultPreferences: Preferences = {
     layout: 'sidebar-nav',
     locale: 'zh-CN',
     loginExpiredMode: 'page',
-    name: 'Vben Admin',
+    name: 'Guoba Fork',
     preferencesButtonPosition: 'auto',
     watermark: false,
     watermarkContent: '',
@@ -66,7 +70,8 @@ const defaultPreferences: Preferences = {
   logo: {
     enable: true,
     fit: 'contain',
-    source: 'https://unpkg.com/@vbenjs/static-source@0.1.7/source/logo-v1.webp',
+    source: appLogo,
+    sourceDark: appLogo,
   },
   navigation: {
     accordion: true,
@@ -118,7 +123,7 @@ const defaultPreferences: Preferences = {
     colorPrimary: 'hsl(212 100% 45%)',
     colorSuccess: 'hsl(144 57% 58%)',
     colorWarning: 'hsl(42 84% 61%)',
-    mode: 'dark',
+    mode: 'light',
     radius: '0.5',
     fontSize: 16,
     semiDarkHeader: false,

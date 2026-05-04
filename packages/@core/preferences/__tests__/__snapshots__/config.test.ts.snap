@@ -4,7 +4,7 @@ exports[`defaultPreferences immutability test > should not modify the config obj
 {
   "app": {
     "accessMode": "frontend",
-    "authPageLayout": "panel-right",
+    "authPageLayout": "panel-left",
     "checkUpdatesInterval": 1,
     "colorGrayMode": false,
     "colorWeakMode": false,
@@ -28,7 +28,7 @@ exports[`defaultPreferences immutability test > should not modify the config obj
     "layout": "sidebar-nav",
     "locale": "zh-CN",
     "loginExpiredMode": "page",
-    "name": "Vben Admin",
+    "name": "Guoba Fork",
     "preferencesButtonPosition": "auto",
     "watermark": false,
     "watermarkContent": "",
@@ -65,7 +65,8 @@ exports[`defaultPreferences immutability test > should not modify the config obj
   "logo": {
     "enable": true,
     "fit": "contain",
-    "source": "https://unpkg.com/@vbenjs/static-source@0.1.7/source/logo-v1.webp",
+    "source": "/favicon.png",
+    "sourceDark": "/favicon.png",
   },
   "navigation": {
     "accordion": true,
@@ -118,7 +119,7 @@ exports[`defaultPreferences immutability test > should not modify the config obj
     "colorSuccess": "hsl(144 57% 58%)",
     "colorWarning": "hsl(42 84% 61%)",
     "fontSize": 16,
-    "mode": "dark",
+    "mode": "light",
     "radius": "0.5",
     "semiDarkHeader": false,
     "semiDarkSidebar": false,
@@ -135,7 +136,7 @@ exports[`defaultPreferences immutability test > should not modify the config obj
     "globalSearch": true,
     "languageToggle": true,
     "lockScreen": true,
-    "notification": true,
+    "notification": false,
     "refresh": true,
     "sidebarToggle": true,
     "themeToggle": true,

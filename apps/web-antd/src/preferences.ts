@@ -14,6 +14,10 @@ const guobaConf = (
 ).__GUOBA_CONF__;
 const icpNoRaw = guobaConf?.ICP_NO;
 const icpNo = icpNoRaw == null ? '' : String(icpNoRaw).trim();
+const publicBase = import.meta.env.BASE_URL || '/';
+const normalizedPublicBase = publicBase.endsWith('/') ? publicBase : `${publicBase}/`;
+
+export const appLogo = `${normalizedPublicBase}favicon.png`;
 
 export const footerCopyright = {
   companyName: `Guoba-plugin Fork${versionLabel}`,
@@ -34,12 +38,20 @@ export const overridesPreferences = defineOverridesPreferences({
   // overrides
   app: {
     accessMode: 'backend',
+    authPageLayout: 'panel-left',
     defaultHomePath: '/home',
     name: import.meta.env.VITE_APP_TITLE,
   },
   copyright: footerCopyright,
   footer: {
     enable: true,
+  },
+  logo: {
+    source: appLogo,
+    sourceDark: appLogo,
+  },
+  theme: {
+    mode: 'light',
   },
   widget: {
     timezone: false,

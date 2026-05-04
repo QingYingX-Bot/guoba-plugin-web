@@ -1,7 +1,7 @@
 import { initPreferences, updatePreferences } from '@vben/preferences';
 import { unmountGlobalLoading } from '@vben/utils';
 
-import { footerCopyright, overridesPreferences } from './preferences';
+import { appLogo, footerCopyright, overridesPreferences } from './preferences';
 
 /**
  * 应用初始化完成之后再进行页面加载渲染
@@ -19,8 +19,14 @@ async function initApplication() {
     overrides: overridesPreferences,
   });
 
-  // 强制覆盖版权文案，避免被历史缓存偏好设置覆盖为旧值
+  const appName = import.meta.env.VITE_APP_TITLE;
+
+  // 强制覆盖品牌与版权文案，避免被历史缓存偏好设置覆盖为旧值
   updatePreferences({
+    app: {
+      authPageLayout: 'panel-left',
+      name: appName,
+    },
     copyright: {
       companyName: footerCopyright.companyName,
       companySiteLink: footerCopyright.companySiteLink,
@@ -31,6 +37,13 @@ async function initApplication() {
       icp: footerCopyright.icp,
       icpLink: footerCopyright.icpLink,
       settingShow: footerCopyright.settingShow,
+    },
+    logo: {
+      source: appLogo,
+      sourceDark: appLogo,
+    },
+    theme: {
+      mode: 'light',
     },
   });
 
