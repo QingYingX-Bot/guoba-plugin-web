@@ -1324,6 +1324,7 @@ onMounted(async () => {
 <template>
   <Page
     auto-content-height
+    :height-offset="32"
     :content-class="activeKey === 'group' ? 'config-page-content group-page-content' : 'config-page-content'"
     :description="activeTab?.title ? '配置管理' : '配置管理（可视化）'"
     :title="activeTab?.title || '配置管理'"
@@ -1806,14 +1807,26 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+:global(main.bg-background-deep:has(.config-page-content)) {
+  min-height: 0;
+  overflow: hidden;
+}
+
+:global(main.bg-background-deep:has(.config-page-content) > .relative.flex.min-h-full.flex-col) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 :deep(.config-page-content) {
   box-sizing: border-box;
   min-height: 0;
+  overflow-x: hidden;
 }
 
 :deep(.group-page-content) {
-  height: calc(100dvh - 128px);
-  min-height: 560px;
+  height: 100%;
+  min-height: 0;
   overflow: hidden !important;
 }
 
@@ -2521,12 +2534,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 1100px) {
-  :deep(.group-page-content) {
-    height: auto;
-    min-height: 0;
-    overflow: visible !important;
-  }
-
   .group-config-workbench {
     grid-template-columns: 1fr;
     height: auto;
