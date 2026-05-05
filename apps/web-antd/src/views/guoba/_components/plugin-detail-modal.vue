@@ -19,6 +19,7 @@ import {
   Select,
   Skeleton,
   Space,
+  Tag,
   Tabs,
   message,
 } from 'ant-design-vue';
@@ -30,7 +31,6 @@ import {
   savePluginConfigApi,
   uninstallPluginApi,
 } from '#/api';
-import PluginStatusTags from '#/views/guoba/_components/plugin-status-tags.vue';
 import SchemaField from '#/views/guoba/_components/schema-field.vue';
 
 interface SchemaGroupItem {
@@ -807,7 +807,14 @@ watch(pluginSchemaGroups, (groups) => {
             <span v-else>无</span>
           </Descriptions.Item>
           <Descriptions.Item label="插件状态">
-            <PluginStatusTags :plugin="plugin" />
+            <Space :size="6" wrap>
+              <Tag v-if="plugin.installed" color="green">已安装</Tag>
+              <Tag v-else>未安装</Tag>
+              <Tag v-if="plugin.hasConfig" color="purple">可配置</Tag>
+              <Tag v-if="plugin.isV3" color="blue">V3</Tag>
+              <Tag v-if="plugin.isV2" color="orange">V2</Tag>
+              <Tag v-if="plugin.isDeleted" color="red">已失效</Tag>
+            </Space>
           </Descriptions.Item>
           <Descriptions.Item label="插件说明">
             {{ plugin.description || '暂无说明' }}

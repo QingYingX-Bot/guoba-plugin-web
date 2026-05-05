@@ -28,7 +28,6 @@ import {
 } from '#/api';
 import { useGuobaStore } from '#/store';
 import PluginDetailModal from '#/views/guoba/_components/plugin-detail-modal.vue';
-import PluginStatusTags from '#/views/guoba/_components/plugin-status-tags.vue';
 
 const guobaStore = useGuobaStore();
 
@@ -537,7 +536,14 @@ watch(
           </template>
 
           <template v-else-if="column.key === 'status'">
-            <PluginStatusTags :plugin="record as GuobaPlugin" />
+            <Space :size="6" wrap>
+              <Tag v-if="(record as GuobaPlugin).installed" color="green">已安装</Tag>
+              <Tag v-else>未安装</Tag>
+              <Tag v-if="(record as GuobaPlugin).hasConfig" color="purple">可配置</Tag>
+              <Tag v-if="(record as GuobaPlugin).isV3" color="blue">V3</Tag>
+              <Tag v-if="(record as GuobaPlugin).isV2" color="orange">V2</Tag>
+              <Tag v-if="(record as GuobaPlugin).isDeleted" color="red">已失效</Tag>
+            </Space>
           </template>
 
           <template v-else-if="column.key === 'action'">

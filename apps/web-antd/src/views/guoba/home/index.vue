@@ -1,15 +1,31 @@
 <script lang="ts" setup>
 import type { GuobaDashboardData, GuobaPlugin } from '#/api';
-import type { Component } from 'vue';
+import type { TableColumnsType } from 'ant-design-vue';
 
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
-import { Bell, CircleHelp, Inbox, LayoutGrid } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
-import { Alert, Button, Card, Empty, Skeleton, Space, Tag } from 'ant-design-vue';
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Empty,
+  Progress,
+  Row,
+  Skeleton,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'ant-design-vue';
 
 import { getDashboardDataApi } from '#/api';
 import { useGuobaStore } from '#/store';
@@ -23,13 +39,39 @@ const errorText = ref('');
 const dashboard = ref<GuobaDashboardData | null>(null);
 const plugins = ref<GuobaPlugin[]>([]);
 
-const greeting = computed(() => {
-  const userName =
+const pluginColumns: TableColumnsType<GuobaPlugin> = [
+  {
+    dataIndex: 'title',
+    ellipsis: true,
+    key: 'title',
+    title: '插件',
+  },
+  {
+    dataIndex: 'author',
+    ellipsis: true,
+    key: 'author',
+    title: '作者',
+    width: 160,
+  },
+  {
+    key: 'status',
+    title: '状态',
+    width: 220,
+  },
+  {
+    key: 'action',
+    title: '操作',
+    width: 92,
+  },
+];
+
+const userName = computed(() => {
+  return (
     userStore.userInfo?.realName
     ?? userStore.userInfo?.username
     ?? userStore.userInfo?.userId
-    ?? '管理员';
-  return `欢迎回来，${userName}`;
+    ?? '管理员'
+  );
 });
 
 const businessSummary = computed(() => {
@@ -46,48 +88,33 @@ const pluginStats = computed(() => {
   const total = plugins.value.length;
   const installed = plugins.value.filter((item) => item.installed).length;
   const configurable = plugins.value.filter((item) => item.hasConfig).length;
+  const invalid = plugins.value.filter((item) => item.isDeleted).length;
   return {
     configurable,
     installed,
+    invalid,
     total,
   };
 });
 
-interface OverviewCard {
-  desc: string;
-  icon: Component;
-  title: string;
-  value: string;
-}
-
-const overviewCards = computed<OverviewCard[]>(() => {
-  return [
-    {
-      desc: '当前会话',
-      icon: Inbox,
-      title: 'Cookie 用户',
-      value: String(businessSummary.value.cookieCount),
-    },
-    {
-      desc: '已接入群聊',
-      icon: CircleHelp,
-      title: '群聊数量',
-      value: String(businessSummary.value.groupCount),
-    },
-    {
-      desc: 'Bot 好友',
-      icon: Bell,
-      title: '好友数量',
-      value: String(businessSummary.value.friendCount),
-    },
-    {
-      desc: `已安装 ${pluginStats.value.installed} · 可配置 ${pluginStats.value.configurable}`,
-      icon: LayoutGrid,
-      title: '插件总数',
-      value: String(pluginStats.value.total),
-    },
-  ];
-});
+const summaryItems = computed(() => [
+  {
+    title: '插件总数',
+    value: pluginStats.value.total,
+  },
+  {
+    title: '已安装',
+    value: pluginStats.value.installed,
+  },
+  {
+    title: '群聊数量',
+    value: businessSummary.value.groupCount,
+  },
+  {
+    title: 'Cookie 用户',
+    value: businessSummary.value.cookieCount,
+  },
+]);
 
 const installedPlugins = computed(() => {
   return plugins.value
@@ -102,7 +129,32 @@ const installedPlugins = computed(() => {
     });
 });
 
-function getMainAuthor(plugin: GuobaPlugin) {
+const accountSummary = computed(() => {
+  return dashboard.value?.accounts ?? {
+    currentNickname: '',
+    currentPlatform: '',
+    currentUin: '',
+    list: [],
+    offlineCount: 0,
+    onlineCount: 0,
+    total: 0,
+  };
+});
+
+const envInfo = computed(() => {
+  return dashboard.value?.env ?? {
+    botMode: '',
+    guobaVersion: '',
+    nodeVersion: '',
+    runtime: '',
+    yunzaiVersion: '',
+  };
+});
+
+const runtimeInfo = computed(() => dashboard.value?.runtime ?? null);
+const redisInfo = computed(() => dashboard.value?.redis ?? null);
+
+function getMainAuthor(plugin: Partial<GuobaPlugin>) {
   const authors = Array.isArray(plugin.author) ? plugin.author : [plugin.author];
   const author = String(authors[0] || '未知').trim();
   return author.replace(/^@+/, '') || '未知';
@@ -113,23 +165,21 @@ function getInitial(text: string) {
   return content ? content[0]!.toUpperCase() : '?';
 }
 
-function shortDesc(text: string) {
+function formatText(text?: string) {
   const value = String(text || '').trim();
-  if (!value) {
-    return '暂无描述';
-  }
-  if (value.length <= 68) {
-    return value;
-  }
-  return `${value.slice(0, 68)}...`;
+  return value || '-';
 }
 
-function openPluginDetail(plugin: GuobaPlugin) {
-  router.push(`/plugin/@/${encodeURIComponent(plugin.name)}`);
+function openPath(path: string) {
+  router.push(path);
 }
 
-function openPluginsPage() {
-  router.push('/plugins/market');
+function openPluginDetail(plugin: Partial<GuobaPlugin>) {
+  const name = String(plugin.name || '').trim();
+  if (!name) {
+    return;
+  }
+  router.push(`/plugin/@/${encodeURIComponent(name)}`);
 }
 
 async function loadData(force = false) {
@@ -158,81 +208,188 @@ onMounted(() => {
 
 <template>
   <Page auto-content-height content-class="home-page-content">
-    <Skeleton v-if="loading" active />
+    <Skeleton v-if="loading" active :paragraph="{ rows: 12 }" />
 
-    <template v-else>
-      <div class="home-page">
-        <Alert v-if="errorText" show-icon type="warning" :message="errorText" />
+    <div v-else class="home-page">
+      <Alert v-if="errorText" show-icon type="warning" :message="errorText" />
 
-        <div class="top-grid">
-          <Card class="welcome-card top-card">
-            <h2 class="welcome-title">{{ greeting }}</h2>
-            <p class="welcome-desc">欢迎使用插件后台管理系统</p>
+      <Card class="hero-card">
+        <Row :gutter="[16, 16]" align="middle" justify="space-between">
+          <Col :xl="14" :lg="24" :xs="24">
+            <Typography.Title :level="3" class="hero-title">
+              欢迎回来，{{ userName }}
+            </Typography.Title>
+            <Typography.Paragraph class="hero-desc">
+              管理插件、配置和运行状态
+            </Typography.Paragraph>
             <Space :size="6" wrap>
-              <Tag>在线插件 {{ pluginStats.total }}</Tag>
-              <Tag color="green">已安装 {{ pluginStats.installed }}</Tag>
-              <Tag color="purple">可配置 {{ pluginStats.configurable }}</Tag>
+              <Tag color="green">Redis {{ redisInfo?.available ? '可用' : '不可用' }}</Tag>
+              <Tag>账号 {{ accountSummary.onlineCount }} / {{ accountSummary.total }}</Tag>
+              <Tag v-if="pluginStats.invalid > 0" color="red">
+                失效插件 {{ pluginStats.invalid }}
+              </Tag>
             </Space>
+          </Col>
+          <Col :xl="10" :lg="24" :xs="24">
+            <Space class="hero-actions" :size="8" wrap>
+              <Button type="primary" @click="openPath('/plugins/market')">插件市场</Button>
+              <Button @click="openPath('/config')">配置管理</Button>
+              <Button @click="loadData(true)">刷新数据</Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+
+      <Row :gutter="[12, 12]">
+        <Col
+          v-for="item in summaryItems"
+          :key="item.title"
+          :xl="6"
+          :md="12"
+          :xs="24"
+        >
+          <Card class="stat-card">
+            <Statistic :title="item.title" :value="item.value" />
           </Card>
+        </Col>
+      </Row>
 
-          <Card
-            v-for="item in overviewCards"
-            :key="item.title"
-            class="top-card metric-card"
-          >
-            <div class="metric-head">
-              <div class="metric-title">{{ item.title }}</div>
-              <component :is="item.icon" class="metric-icon" />
-            </div>
-            <div class="metric-value">{{ item.value }}</div>
-            <div class="metric-desc">{{ item.desc }}</div>
+      <Row :gutter="[12, 12]" class="content-row">
+        <Col :xl="16" :lg="24" :xs="24" class="content-col">
+          <Card class="panel-card" title="已安装插件">
+            <template #extra>
+              <Button type="link" @click="openPath('/plugins/market')">查看全部</Button>
+            </template>
+
+            <Table
+              v-if="installedPlugins.length > 0"
+              :columns="pluginColumns"
+              :data-source="installedPlugins"
+              :pagination="false"
+              row-key="name"
+              size="small"
+              :scroll="{ x: 720, y: 'calc(100dvh - 470px)' }"
+            >
+              <template #bodyCell="{ column, record: plugin }">
+                <template v-if="column.key === 'title'">
+                  <Space :size="10">
+                    <Avatar>{{ getInitial(plugin.title || plugin.name) }}</Avatar>
+                    <div class="plugin-name-cell">
+                      <Typography.Text strong>{{ plugin.title || plugin.name }}</Typography.Text>
+                      <Typography.Text type="secondary">{{ plugin.name }}</Typography.Text>
+                    </div>
+                  </Space>
+                </template>
+
+                <template v-else-if="column.key === 'author'">
+                  {{ getMainAuthor(plugin) }}
+                </template>
+
+                <template v-else-if="column.key === 'status'">
+                  <Space :size="4" wrap>
+                    <Tag color="green">已安装</Tag>
+                    <Tag v-if="plugin.hasConfig" color="purple">可配置</Tag>
+                    <Tag v-if="plugin.isV3" color="blue">V3</Tag>
+                    <Tag v-if="plugin.isV2" color="orange">V2</Tag>
+                    <Tag v-if="plugin.isDeleted" color="red">已失效</Tag>
+                  </Space>
+                </template>
+
+                <template v-else-if="column.key === 'action'">
+                  <Button type="link" size="small" @click="openPluginDetail(plugin)">
+                    详情
+                  </Button>
+                </template>
+              </template>
+            </Table>
+
+            <Empty v-else description="暂无已安装插件" />
           </Card>
-        </div>
+        </Col>
 
-        <Card class="overview-card" title="插件概览">
-          <template #extra>
-            <Button type="link" @click="openPluginsPage">更多</Button>
-          </template>
+        <Col :xl="8" :lg="24" :xs="24" class="content-col">
+          <Space direction="vertical" :size="12" class="side-stack">
+            <Card title="运行状态">
+              <Descriptions :column="1" size="small">
+                <Descriptions.Item label="云崽版本">
+                  {{ formatText(envInfo.yunzaiVersion) }}
+                </Descriptions.Item>
+                <Descriptions.Item label="锅巴版本">
+                  {{ formatText(envInfo.guobaVersion) }}
+                </Descriptions.Item>
+                <Descriptions.Item label="Node">
+                  {{ formatText(envInfo.nodeVersion) }}
+                </Descriptions.Item>
+                <Descriptions.Item label="运行模式">
+                  {{ formatText(envInfo.botMode) }}
+                </Descriptions.Item>
+                <Descriptions.Item label="运行时间">
+                  {{ formatText(runtimeInfo?.processUptime.text) }}
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
 
-          <div class="plugin-scroll">
-            <div v-if="installedPlugins.length === 0" class="empty-wrap">
-              <Empty description="暂无已安装插件" />
-            </div>
-
-            <div v-else class="plugin-grid">
-              <div
-                v-for="plugin in installedPlugins"
-                :key="plugin.name"
-                class="plugin-card"
-                @click="openPluginDetail(plugin)"
-              >
-                <div class="plugin-header">
-                  <div class="plugin-avatar">
-                    {{ getInitial(plugin.title || plugin.name) }}
+            <Card title="资源占用">
+              <Space direction="vertical" :size="12" class="side-stack">
+                <div>
+                  <div class="progress-head">
+                    <Typography.Text>进程内存</Typography.Text>
+                    <Typography.Text type="secondary">
+                      {{ runtimeInfo?.processMemory.heapUsedText ?? '-' }}
+                    </Typography.Text>
                   </div>
-                  <div class="plugin-meta">
-                    <div class="plugin-title">{{ plugin.title || plugin.name }}</div>
-                    <div class="plugin-author">@{{ getMainAuthor(plugin) }}</div>
+                  <Progress
+                    :percent="runtimeInfo?.processMemory.heapUsagePercent ?? 0"
+                    size="small"
+                  />
+                </div>
+                <div>
+                  <div class="progress-head">
+                    <Typography.Text>系统内存</Typography.Text>
+                    <Typography.Text type="secondary">
+                      {{ runtimeInfo?.systemMemory.usedText ?? '-' }}
+                    </Typography.Text>
                   </div>
+                  <Progress
+                    :percent="runtimeInfo?.systemMemory.usagePercent ?? 0"
+                    size="small"
+                  />
                 </div>
+                <Descriptions :column="1" size="small">
+                  <Descriptions.Item label="Redis Key">
+                    {{ redisInfo?.keyCount ?? 0 }}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="好友数量">
+                    {{ businessSummary.friendCount }}
+                  </Descriptions.Item>
+                </Descriptions>
+              </Space>
+            </Card>
 
-                <div class="plugin-desc">
-                  {{ shortDesc(plugin.description) }}
+            <Card title="账号状态">
+              <Space v-if="accountSummary.list.length > 0" direction="vertical" class="side-stack">
+                <div
+                  v-for="account in accountSummary.list.slice(0, 5)"
+                  :key="`${account.platform}:${account.uin}`"
+                  class="account-item"
+                >
+                  <Space :size="8">
+                    <Tag :color="account.online ? 'green' : 'default'">
+                      {{ account.online ? '在线' : '离线' }}
+                    </Tag>
+                    <Tooltip :title="account.uin">
+                      <Typography.Text>{{ account.nickname || account.uin }}</Typography.Text>
+                    </Tooltip>
+                  </Space>
+                  <Typography.Text type="secondary">{{ account.platform }}</Typography.Text>
                 </div>
-
-                <Space :size="4" wrap>
-                  <Tag color="green">已安装</Tag>
-                  <Tag v-if="plugin.hasConfig" color="purple">可配置</Tag>
-                  <Tag v-if="plugin.isV3" color="blue">V3</Tag>
-                  <Tag v-if="plugin.isV2" color="orange">V2</Tag>
-                  <Tag v-if="plugin.isDeleted" color="red">已失效</Tag>
-                </Space>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </template>
+              </Space>
+              <Empty v-else description="暂无账号数据" />
+            </Card>
+          </Space>
+        </Col>
+      </Row>
+    </div>
   </Page>
 </template>
 
@@ -244,233 +401,121 @@ onMounted(() => {
 }
 
 .home-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   height: 100%;
   min-height: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 12px;
+  overflow: hidden;
 }
 
-.top-grid {
-  display: grid;
-  grid-template-columns: 1.7fr repeat(4, minmax(0, 1fr));
-  gap: 10px;
+.hero-card :deep(.ant-card-body) {
+  padding: 16px 24px;
 }
 
-.top-card :deep(.ant-card-body) {
-  padding: 14px 14px 12px;
+.hero-title {
+  margin: 0 0 6px !important;
 }
 
-.welcome-title {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.welcome-desc {
-  margin: 6px 0 10px;
-  font-size: 13px;
+.hero-desc {
+  margin-bottom: 8px !important;
   color: hsl(var(--muted-foreground));
 }
 
-.metric-card {
-  display: block;
+.stat-card :deep(.ant-card-body) {
+  padding: 14px 24px;
 }
 
-.metric-head {
+.stat-card :deep(.ant-statistic-title) {
+  margin-bottom: 6px;
+}
+
+.stat-card :deep(.ant-statistic-content) {
+  font-size: 22px;
+}
+
+.hero-actions {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.content-row {
+  flex: 1;
+  min-height: 0;
+}
+
+.content-col {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.metric-title {
-  color: hsl(var(--foreground));
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.metric-icon {
-  width: 18px;
-  height: 18px;
-  color: hsl(var(--muted-foreground));
-  opacity: 0.85;
-}
-
-.metric-value {
-  margin-top: 6px;
-  font-size: 42px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.metric-desc {
-  margin-top: 2px;
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-}
-
-.overview-card {
   min-height: 0;
 }
 
-.overview-card :deep(.ant-card-head) {
-  min-height: 48px;
-  padding: 0 14px;
-}
-
-.overview-card :deep(.ant-card-head-title) {
-  padding: 12px 0;
-}
-
-.overview-card :deep(.ant-card-body) {
-  height: calc(100% - 48px);
+.panel-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   min-height: 0;
-  padding: 14px;
+  width: 100%;
 }
 
-.plugin-scroll {
+.panel-card :deep(.ant-card-body) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-card :deep(.ant-table-wrapper),
+.panel-card :deep(.ant-spin-nested-loading),
+.panel-card :deep(.ant-spin-container) {
+  height: 100%;
+  min-height: 0;
+}
+
+.panel-card :deep(.ant-spin-container) {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-card :deep(.ant-table) {
+  flex: 1;
+  min-height: 0;
+}
+
+.side-stack {
   height: 100%;
   min-height: 0;
   overflow: auto;
-  padding-right: 4px;
+  width: 100%;
 }
 
-.empty-wrap {
+.side-stack :deep(.ant-card-body) {
+  padding: 14px 24px;
+}
+
+.plugin-name-cell {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 220px;
-}
-
-.plugin-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.plugin-card {
-  border: 1px solid hsl(var(--border) / 75%);
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.plugin-card:hover {
-  border-color: hsl(var(--primary) / 60%);
-  box-shadow: 0 4px 16px hsl(var(--primary) / 12%);
-}
-
-.plugin-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.plugin-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-  color: hsl(var(--foreground));
-  background: hsl(var(--muted) / 65%);
-}
-
-.plugin-meta {
   min-width: 0;
-  display: flex;
   flex-direction: column;
 }
 
-.plugin-title {
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.progress-head,
+.account-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.plugin-author {
-  margin-top: 2px;
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.plugin-desc {
-  font-size: 12px;
-  line-height: 1.5;
-  color: hsl(var(--muted-foreground));
-  min-height: 36px;
-}
-
-@media (max-width: 1800px) {
-  .metric-value {
-    font-size: 34px;
-  }
-}
-
-@media (max-width: 1480px) {
+@media (max-width: 1200px) {
   :deep(.home-page-content) {
     overflow: auto;
   }
 
   .home-page {
     height: auto;
-    grid-template-rows: auto;
   }
 
-  .top-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .top-grid > :first-child {
-    grid-column: 1 / -1;
-  }
-
-  .overview-card :deep(.ant-card-body) {
-    height: auto;
-  }
-
-  .plugin-scroll {
-    max-height: 70vh;
-  }
-
-  .plugin-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 1024px) {
-  .top-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .plugin-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .welcome-title {
-    font-size: 24px;
-  }
-}
-
-@media (max-width: 640px) {
-  .top-grid,
-  .plugin-grid {
-    grid-template-columns: 1fr;
+  .hero-actions {
+    justify-content: flex-start;
   }
 }
 </style>

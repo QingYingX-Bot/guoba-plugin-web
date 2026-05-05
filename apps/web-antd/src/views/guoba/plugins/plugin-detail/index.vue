@@ -20,6 +20,7 @@ import {
   Result,
   Skeleton,
   Space,
+  Tag,
   Tabs,
   message,
 } from 'ant-design-vue';
@@ -30,7 +31,6 @@ import {
 } from '#/api';
 import { useGuobaStore } from '#/store';
 import SchemaField from '#/views/guoba/_components/schema-field.vue';
-import PluginStatusTags from '#/views/guoba/_components/plugin-status-tags.vue';
 
 interface SchemaGroupItem {
   key: string;
@@ -330,7 +330,14 @@ onMounted(() => {
           <div>
             <h2 class="plugin-title">{{ pageTitle }}</h2>
             <p class="plugin-desc">{{ plugin.description || '暂无说明' }}</p>
-            <PluginStatusTags :plugin="plugin" />
+            <Space :size="6" wrap>
+              <Tag v-if="plugin.installed" color="green">已安装</Tag>
+              <Tag v-else>未安装</Tag>
+              <Tag v-if="plugin.hasConfig" color="purple">可配置</Tag>
+              <Tag v-if="plugin.isV3" color="blue">V3</Tag>
+              <Tag v-if="plugin.isV2" color="orange">V2</Tag>
+              <Tag v-if="plugin.isDeleted" color="red">已失效</Tag>
+            </Space>
           </div>
           <div class="plugin-header-actions">
             <Space
