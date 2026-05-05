@@ -1812,6 +1812,8 @@ onMounted(async () => {
 }
 
 :deep(.group-page-content) {
+  height: calc(100dvh - 128px);
+  min-height: 560px;
   overflow: hidden !important;
 }
 
@@ -1925,6 +1927,8 @@ onMounted(async () => {
 .group-config-card-wrapper {
   height: 100%;
   max-width: none;
+  margin-bottom: 0;
+  overflow: hidden;
 }
 
 .group-config-card-wrapper :deep(.ant-card-head) {
@@ -2517,6 +2521,12 @@ onMounted(async () => {
 }
 
 @media (max-width: 1100px) {
+  :deep(.group-page-content) {
+    height: auto;
+    min-height: 0;
+    overflow: visible !important;
+  }
+
   .group-config-workbench {
     grid-template-columns: 1fr;
     height: auto;

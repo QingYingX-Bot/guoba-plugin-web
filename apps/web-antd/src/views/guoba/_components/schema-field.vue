@@ -50,6 +50,9 @@ interface OicqPageResult<T = Recordable<any>> {
   total?: number;
 }
 
+type SelectBizGroupRecordKind = 'discord' | 'official-qq-bot' | 'other' | 'qq';
+type SelectBizGroupFilter = 'all' | SelectBizGroupRecordKind;
+
 const LEGACY_COMPONENT_ALIASES: Record<string, string> = {
   'Input.TextArea': 'InputTextArea',
   InputCountDown: 'Input',
@@ -1068,6 +1071,8 @@ const selectBizFilters = reactive({
   id: '',
   name: '',
 });
+const selectBizGroupKeyword = ref('');
+const selectBizGroupFilter = ref<SelectBizGroupFilter>('all');
 
 const selectBizSelectedRowKeys = ref<Array<number | string>>([]);
 const selectBizSelectedRows = ref<Recordable<any>[]>([]);
@@ -1103,10 +1108,6 @@ const selectBizModalTitle = computed(() => {
   return isSelectGroup.value ? '选择群聊' : '选择好友';
 });
 
-const selectBizSelectOptions = computed(() => {
-  return Object.values(selectBizOptionMap.value);
-});
-
 const selectBizPagination = computed(() => {
   return {
     current: selectBizPage.current,
@@ -1122,9 +1123,23 @@ const selectBizPagination = computed(() => {
 const selectBizColumns = computed(() => {
   if (isSelectGroup.value) {
     return [
-      { key: 'avatar', title: '头像', width: 72 },
-      { dataIndex: 'group_id', key: 'group_id', title: '群号', width: 150 },
-      { dataIndex: 'group_name', key: 'group_name', title: '群名' },
+      {
+        ellipsis: true,
+        title: '名称',
+        customRender: ({ record }: { record: Recordable<any> }) => h('div', { class: 'group-picker-name' }, [
+          h('strong', getSelectGroupRecordDisplayName(record)),
+          h('small', getSelectGroupRecordDisplayMeta(record)),
+        ]),
+      },
+      {
+        title: '类型',
+        width: 150,
+        customRender: ({ record }: { record: Recordable<any> }) => {
+          const kind = getSelectGroupRecordKind(record);
+          return h(Tag, { color: getSelectGroupRecordKindColor(kind) }, () => getSelectGroupRecordKindText(kind));
+        },
+      },
+      { dataIndex: 'group_id', key: 'group_id', title: 'ID', width: 360 },
     ];
   }
 
@@ -1145,6 +1160,32 @@ const selectBizRowSelection = computed(() => {
   };
 });
 
+const selectBizDisplayOptions = computed(() => {
+  return selectBizSelectedRowKeys.value.map((key) => {
+    return selectBizOptionMap.value[toKeyString(key)] ?? {
+      label: String(key),
+      value: key,
+    };
+  });
+});
+
+const selectBizPlaceholder = computed(() => {
+  return String(componentProps.value.placeholder ?? (isSelectGroup.value ? '请选择群聊' : '请选择好友'));
+});
+
+const selectBizFilteredGroupRecords = computed(() => {
+  if (!isSelectGroup.value) {
+    return selectBizRecords.value;
+  }
+
+  return selectBizRecords.value.filter((record) => {
+    if (selectBizGroupFilter.value !== 'all' && getSelectGroupRecordKind(record) !== selectBizGroupFilter.value) {
+      return false;
+    }
+    return isSelectGroupRecordMatched(record, selectBizGroupKeyword.value);
+  });
+});
+
 function toKeyString(value: any) {
   return String(value ?? '');
 }
@@ -1163,7 +1204,9 @@ function normalizeSelectBizValues(value: any): Array<number | string> {
 
 function buildBizOptionFromRecord(record: Recordable<any>) {
   const id = record?.[selectBizRowKey.value];
-  const label = record?.[selectBizLabelKey.value];
+  const label = isSelectGroup.value
+    ? getSelectGroupRecordDisplayName(record)
+    : record?.[selectBizLabelKey.value];
   return {
     label: String(label ?? id ?? ''),
     value: id as number | string,
@@ -1183,6 +1226,122 @@ function getSelectBizAvatar(record: Recordable<any>) {
     return `https://p.qlogo.cn/gh/${id}/${id}/100`;
   }
   return `https://q1.qlogo.cn/g?b=qq&s=100&nk=${id}`;
+}
+
+function normalizeSelectGroupRecords(result: OicqPageResult | undefined) {
+  if (!Array.isArray(result?.records)) {
+    return [];
+  }
+
+  return result.records.filter((item) => {
+    const groupId = String(item?.group_id ?? '').trim();
+    const groupName = String(item?.group_name ?? '').trim().toLowerCase();
+    return groupId !== 'stdin' && groupName !== '标准输入';
+  });
+}
+
+function getSelectGroupRecordId(record: Recordable<any>) {
+  return String(record?.group_id ?? '').trim();
+}
+
+function getSelectGroupRecordName(record: Recordable<any>) {
+  return String(record?.group_name ?? '').trim();
+}
+
+function getSelectGroupRecordKind(record: Recordable<any>): SelectBizGroupRecordKind {
+  const groupId = getSelectGroupRecordId(record);
+  if (/^\d{5,12}$/.test(groupId)) {
+    return 'qq';
+  }
+  if (/^\d+:[0-9A-Fa-f]+$/.test(groupId)) {
+    return 'official-qq-bot';
+  }
+  if (groupId.startsWith('dc_')) {
+    return 'discord';
+  }
+  return 'other';
+}
+
+function getSelectGroupDiscordParts(record: Recordable<any>) {
+  const name = getSelectGroupRecordName(record);
+  const index = name.indexOf('-');
+  if (index < 0) {
+    return {
+      channel: name || getSelectGroupRecordId(record),
+      server: 'Discord',
+    };
+  }
+  return {
+    channel: name.slice(index + 1).trim() || name,
+    server: name.slice(0, index).trim() || 'Discord',
+  };
+}
+
+function getSelectGroupRecordKindText(kind: SelectBizGroupRecordKind) {
+  if (kind === 'qq') {
+    return 'QQ 群';
+  }
+  if (kind === 'official-qq-bot') {
+    return '官方 QQ 机器人';
+  }
+  if (kind === 'discord') {
+    return 'Discord';
+  }
+  return '其他';
+}
+
+function getSelectGroupRecordKindColor(kind: SelectBizGroupRecordKind) {
+  if (kind === 'qq') {
+    return 'green';
+  }
+  if (kind === 'official-qq-bot') {
+    return 'blue';
+  }
+  if (kind === 'discord') {
+    return 'purple';
+  }
+  return 'default';
+}
+
+function getSelectGroupRecordDisplayName(record: Recordable<any>) {
+  const kind = getSelectGroupRecordKind(record);
+  if (kind === 'discord') {
+    return getSelectGroupDiscordParts(record).channel;
+  }
+  if (kind === 'official-qq-bot') {
+    return getSelectGroupRecordName(record) || '官方 QQ 机器人';
+  }
+  return getSelectGroupRecordName(record) || getSelectGroupRecordId(record);
+}
+
+function getSelectGroupRecordDisplayMeta(record: Recordable<any>) {
+  const kind = getSelectGroupRecordKind(record);
+  if (kind === 'discord') {
+    return getSelectGroupDiscordParts(record).server;
+  }
+  return getSelectGroupRecordKindText(kind);
+}
+
+function isSelectGroupRecordMatched(record: Recordable<any>, keyword: string) {
+  const text = keyword.trim().toLowerCase();
+  if (!text) {
+    return true;
+  }
+
+  return [
+    record.group_id,
+    record.group_name,
+    getSelectGroupRecordKindText(getSelectGroupRecordKind(record)),
+    getSelectGroupRecordDisplayName(record),
+    getSelectGroupRecordDisplayMeta(record),
+  ].some((value) => String(value ?? '').toLowerCase().includes(text));
+}
+
+function getSelectGroupFilterText(filter: SelectBizGroupFilter) {
+  if (filter !== 'all') {
+    return getSelectGroupRecordKindText(filter);
+  }
+  return '全部';
 }
 
 function syncSelectBizOptionMap(values: Array<number | string>) {
@@ -1246,6 +1405,31 @@ async function loadSelectBizTableData() {
 
   selectBizTableLoading.value = true;
   try {
+    if (isSelectGroup.value) {
+      const records: Recordable<any>[] = [];
+      let pageNo = 1;
+      let maxNum = 1;
+
+      do {
+        const result = await fetchSelectBizList({
+          pageNo,
+          pageSize: 200,
+        });
+        records.push(...normalizeSelectGroupRecords(result));
+        maxNum = Math.max(1, Number(result?.maxNum ?? 1));
+        pageNo += 1;
+      } while (pageNo <= maxNum);
+
+      const uniqueMap = new Map<string, Recordable<any>>();
+      records.forEach((item) => {
+        uniqueMap.set(String(item.group_id), item);
+      });
+      selectBizRecords.value = Array.from(uniqueMap.values());
+      selectBizTotal.value = selectBizRecords.value.length;
+      mergeRowsByKeys(selectBizSelectedRowKeys.value);
+      return;
+    }
+
     const params: Recordable<any> = {
       pageNo: selectBizPage.current,
       pageSize: selectBizPage.pageSize,
@@ -1307,11 +1491,19 @@ function openSelectBizModal() {
 }
 
 function onSelectBizSearch() {
+  if (isSelectGroup.value) {
+    return;
+  }
   selectBizPage.current = 1;
   loadSelectBizTableData();
 }
 
 function onSelectBizResetSearch() {
+  if (isSelectGroup.value) {
+    selectBizGroupKeyword.value = '';
+    selectBizGroupFilter.value = 'all';
+    return;
+  }
   selectBizFilters.id = '';
   selectBizFilters.name = '';
   selectBizPage.current = 1;
@@ -1319,6 +1511,9 @@ function onSelectBizResetSearch() {
 }
 
 function onSelectBizTableChange(pagination: Recordable<any>) {
+  if (isSelectGroup.value) {
+    return;
+  }
   const current = Number(pagination?.current ?? 1);
   const pageSize = Number(pagination?.pageSize ?? selectBizPage.pageSize);
   if (current !== selectBizPage.current) {
@@ -1343,18 +1538,62 @@ function applySelectBizSelection() {
   selectBizOpen.value = false;
 }
 
-function updateSelectBizValue(value?: any) {
-  const rawValues = Array.isArray(value)
-    ? value
-    : value === null || value === undefined || value === ''
-      ? []
-      : [value];
-  const next = rawValues.map((item) => {
-    return typeof item === 'number' ? item : String(item);
+function removeSelectBizValue(key: number | string) {
+  const next = selectBizSelectedRowKeys.value.filter((item) => toKeyString(item) !== toKeyString(key));
+  onSelectBizChange(next);
+  emit('update:value', [...next]);
+}
+
+function addSelectGroupKeywordSelection() {
+  const keyword = selectBizGroupKeyword.value.trim();
+  if (!keyword) {
+    return;
+  }
+
+  const existedRecord = selectBizRecords.value.find((record) => {
+    return String(record.group_id ?? '').trim() === keyword
+      || String(record.group_name ?? '').trim() === keyword;
   });
+  const value = existedRecord?.group_id ?? keyword;
+  const key = typeof value === 'number' ? value : String(value);
+  const next = Array.from(new Set([...selectBizSelectedRowKeys.value.map((item) => String(item)), String(key)]));
   selectBizSelectedRowKeys.value = next;
-  mergeRowsByKeys(next);
-  emit('update:value', next);
+
+  if (existedRecord) {
+    selectBizSelectedRows.value = [
+      ...selectBizSelectedRows.value.filter((row) => toKeyString(getSelectBizRecordKey(row)) !== toKeyString(key)),
+      existedRecord,
+    ];
+  }
+
+  mergeRowsByKeys(selectBizSelectedRowKeys.value);
+}
+
+function getSelectBizRowClassName(record: Recordable<any>) {
+  return selectBizSelectedRowKeys.value.some((key) => toKeyString(key) === toKeyString(getSelectBizRecordKey(record)))
+    ? 'is-selected'
+    : '';
+}
+
+function getSelectBizCustomRow(record: Recordable<any>) {
+  return {
+    onClick: (event: MouseEvent) => toggleSelectBizRecordSelection(record, event),
+  };
+}
+
+function toggleSelectBizRecordSelection(record: Recordable<any>, event?: MouseEvent) {
+  const target = event?.target as HTMLElement | null;
+  if (target?.closest?.('.ant-checkbox-wrapper')) {
+    return;
+  }
+
+  const key = getSelectBizRecordKey(record);
+  const keyText = toKeyString(key);
+  const existed = selectBizSelectedRowKeys.value.some((item) => toKeyString(item) === keyText);
+  const next = existed
+    ? selectBizSelectedRowKeys.value.filter((item) => toKeyString(item) !== keyText)
+    : [...selectBizSelectedRowKeys.value, key];
+  onSelectBizChange(next);
 }
 
 watch(
@@ -1709,67 +1948,120 @@ function updateInputNumber(value?: null | number | string) {
     </div>
 
     <div v-else-if="isSelectBiz" class="select-biz-wrap">
-      <Space.Compact block>
-        <Select
-          style="width: 100%"
-          :placeholder="componentProps.placeholder ?? '请选择'"
-          mode="multiple"
-          :open="false"
-          :value="selectBizSelectedRowKeys"
-          :options="selectBizSelectOptions"
-          @click="openSelectBizModal"
-          @update:value="updateSelectBizValue"
-        />
-        <Button @click="openSelectBizModal">选择</Button>
-      </Space.Compact>
+      <div class="select-biz-trigger-row">
+        <div class="select-biz-trigger" role="button" tabindex="0" @click="openSelectBizModal">
+          <template v-if="selectBizDisplayOptions.length > 0">
+            <Tag
+              v-for="option in selectBizDisplayOptions"
+              :key="String(option.value)"
+              closable
+              @click.stop
+              @close.prevent="removeSelectBizValue(option.value)"
+            >
+              {{ option.label }}
+            </Tag>
+          </template>
+          <span v-else class="select-biz-placeholder">{{ selectBizPlaceholder }}</span>
+        </div>
+        <Button type="primary" @click="openSelectBizModal">选择</Button>
+      </div>
 
       <Modal
         v-model:open="selectBizOpen"
         :title="selectBizModalTitle"
-        :width="980"
+        :width="isSelectGroup ? 920 : 980"
         wrap-class-name="select-biz-modal"
         @ok="applySelectBizSelection"
       >
-        <div class="select-biz-toolbar">
-          <Input
-            v-model:value="selectBizFilters.id"
-            class="select-biz-filter"
-            :placeholder="isSelectGroup ? '按群号筛选' : '按QQ号筛选'"
-            @pressEnter="onSelectBizSearch"
-          />
-          <Input
-            v-model:value="selectBizFilters.name"
-            class="select-biz-filter"
-            :placeholder="isSelectGroup ? '按群名筛选' : '按昵称筛选'"
-            @pressEnter="onSelectBizSearch"
-          />
-          <Space class="select-biz-toolbar-actions" wrap>
-            <Button type="primary" @click="onSelectBizSearch">查询</Button>
-            <Button @click="onSelectBizResetSearch">重置</Button>
-          </Space>
-        </div>
+        <template v-if="isSelectGroup">
+          <div class="group-picker-modal schema-group-picker">
+            <Input.Search
+              v-model:value="selectBizGroupKeyword"
+              allow-clear
+              placeholder="搜索名称或 ID，找不到可直接输入群号"
+              @search="addSelectGroupKeywordSelection"
+              @pressEnter="addSelectGroupKeywordSelection"
+            />
+            <Radio.Group
+              v-model:value="selectBizGroupFilter"
+              button-style="solid"
+              class="group-picker-filter"
+              option-type="button"
+              :options="[
+                { label: '全部', value: 'all' },
+                { label: 'QQ 群', value: 'qq' },
+                { label: '官方 QQ', value: 'official-qq-bot' },
+                { label: 'Discord', value: 'discord' },
+                { label: '其他', value: 'other' },
+              ]"
+              size="small"
+            />
+            <Table
+              class="group-picker-table"
+              size="small"
+              :columns="selectBizColumns"
+              :custom-row="getSelectBizCustomRow"
+              :data-source="selectBizFilteredGroupRecords"
+              :loading="selectBizTableLoading"
+              :pagination="false"
+              :row-class-name="getSelectBizRowClassName"
+              :row-key="getSelectBizRecordKey"
+              :row-selection="selectBizRowSelection"
+              :scroll="{ y: 460 }"
+            >
+              <template #emptyText>
+                <Empty description="暂无群聊" />
+              </template>
+            </Table>
+            <div class="group-picker-footer">
+              <span>{{ getSelectGroupFilterText(selectBizGroupFilter) }} {{ selectBizFilteredGroupRecords.length }} / {{ selectBizRecords.length }}</span>
+              <span>已选择 {{ selectBizSelectedRowKeys.length }}</span>
+            </div>
+          </div>
+        </template>
 
-        <Table
-          class="select-biz-table"
-          size="small"
-          :loading="selectBizTableLoading"
-          :columns="selectBizColumns"
-          :data-source="selectBizRecords"
-          :pagination="selectBizPagination"
-          :row-selection="selectBizRowSelection"
-          :row-key="getSelectBizRecordKey"
-          @change="onSelectBizTableChange"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'avatar'">
-              <Avatar :size="30" :src="getSelectBizAvatar(record)" />
+        <template v-else>
+          <div class="select-biz-toolbar">
+            <Input
+              v-model:value="selectBizFilters.id"
+              class="select-biz-filter"
+              placeholder="按QQ号筛选"
+              @pressEnter="onSelectBizSearch"
+            />
+            <Input
+              v-model:value="selectBizFilters.name"
+              class="select-biz-filter"
+              placeholder="按昵称筛选"
+              @pressEnter="onSelectBizSearch"
+            />
+            <Space class="select-biz-toolbar-actions" wrap>
+              <Button type="primary" @click="onSelectBizSearch">查询</Button>
+              <Button @click="onSelectBizResetSearch">重置</Button>
+            </Space>
+          </div>
+
+          <Table
+            class="select-biz-table"
+            size="small"
+            :loading="selectBizTableLoading"
+            :columns="selectBizColumns"
+            :data-source="selectBizRecords"
+            :pagination="selectBizPagination"
+            :row-selection="selectBizRowSelection"
+            :row-key="getSelectBizRecordKey"
+            @change="onSelectBizTableChange"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'avatar'">
+                <Avatar :size="30" :src="getSelectBizAvatar(record)" />
+              </template>
             </template>
-          </template>
 
-          <template #emptyText>
-            <Empty description="暂无数据" />
-          </template>
-        </Table>
+            <template #emptyText>
+              <Empty description="暂无数据" />
+            </template>
+          </Table>
+        </template>
       </Modal>
     </div>
 
@@ -2103,6 +2395,41 @@ function updateInputNumber(value?: null | number | string) {
   width: 100%;
 }
 
+.select-biz-trigger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.select-biz-trigger {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-height: 34px;
+  padding: 4px 8px;
+  cursor: pointer;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.select-biz-trigger:hover {
+  border-color: rgb(14 165 233 / 70%);
+}
+
+.select-biz-trigger:focus {
+  border-color: rgb(14 165 233);
+  box-shadow: 0 0 0 2px rgb(14 165 233 / 12%);
+  outline: none;
+}
+
+.select-biz-placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
 .select-biz-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
@@ -2119,15 +2446,99 @@ function updateInputNumber(value?: null | number | string) {
   justify-self: end;
 }
 
-:deep(.select-biz-modal .ant-modal-body) {
+:global(.select-biz-modal .ant-modal-body) {
   padding-top: 20px;
 }
 
-:deep(.select-biz-modal .ant-table-wrapper) {
+:global(.group-picker-modal) {
+  display: grid;
+  gap: 10px;
+  max-height: calc(100vh - 168px);
+  padding-top: 2px;
+}
+
+:global(.group-picker-filter) {
+  display: flex;
+  justify-content: center;
+}
+
+:global(.group-picker-filter .ant-radio-button-wrapper) {
+  min-width: 72px;
+  text-align: center;
+}
+
+:global(.group-picker-table .ant-table) {
+  overflow: hidden;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 8px;
+}
+
+:global(.group-picker-table .ant-table-cell) {
+  vertical-align: middle;
+}
+
+:global(.group-picker-table .ant-table-tbody > tr > td) {
+  height: 44px;
+}
+
+:global(.group-picker-table .ant-table-tbody > tr > td:first-child) {
+  font-weight: 500;
+}
+
+:global(.group-picker-name) {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+:global(.group-picker-name strong),
+:global(.group-picker-name small) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:global(.group-picker-name small) {
+  color: rgb(100 116 139);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+:global(.group-picker-table .ant-table-tbody > tr > td:nth-child(3)) {
+  color: rgb(71 85 105);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  word-break: break-all;
+}
+
+:global(.group-picker-table .ant-table-tbody > tr) {
+  cursor: pointer;
+}
+
+:global(.group-picker-table .ant-table-tbody > tr.is-selected > td) {
+  background: rgb(240 253 244) !important;
+  color: rgb(22 101 52);
+}
+
+:global(.group-picker-table .ant-table-tbody > tr:hover > td) {
+  background: rgb(248 250 252);
+}
+
+:global(.group-picker-footer) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-height: 28px;
+  color: rgb(100 116 139);
+  font-size: 13px;
+}
+
+:global(.select-biz-modal .ant-table-wrapper) {
   overflow: hidden;
 }
 
-:deep(.select-biz-modal .ant-table-pagination.ant-pagination) {
+:global(.select-biz-modal .ant-table-pagination.ant-pagination) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2137,12 +2548,12 @@ function updateInputNumber(value?: null | number | string) {
   margin-top: 16px;
 }
 
-:deep(.select-biz-modal .ant-pagination-total-text) {
+:global(.select-biz-modal .ant-pagination-total-text) {
   margin-inline-end: auto;
   color: rgb(100 116 139);
 }
 
-:deep(.select-biz-modal .ant-pagination-options) {
+:global(.select-biz-modal .ant-pagination-options) {
   display: flex;
   flex-shrink: 0;
   align-items: center;
@@ -2150,12 +2561,12 @@ function updateInputNumber(value?: null | number | string) {
   margin-inline-start: auto;
 }
 
-:deep(.select-biz-modal .ant-pagination-options-size-changer) {
+:global(.select-biz-modal .ant-pagination-options-size-changer) {
   min-width: 112px;
   margin: 0;
 }
 
-:deep(.select-biz-modal .ant-pagination-options-quick-jumper) {
+:global(.select-biz-modal .ant-pagination-options-quick-jumper) {
   display: flex;
   flex-shrink: 0;
   align-items: center;
@@ -2164,7 +2575,7 @@ function updateInputNumber(value?: null | number | string) {
   white-space: nowrap;
 }
 
-:deep(.select-biz-modal .ant-pagination-options-quick-jumper input) {
+:global(.select-biz-modal .ant-pagination-options-quick-jumper input) {
   width: 56px;
   min-width: 56px;
   margin: 0;
@@ -2179,11 +2590,11 @@ function updateInputNumber(value?: null | number | string) {
     justify-self: start;
   }
 
-  :deep(.select-biz-modal .ant-table-pagination.ant-pagination) {
+  :global(.select-biz-modal .ant-table-pagination.ant-pagination) {
     justify-content: flex-start;
   }
 
-  :deep(.select-biz-modal .ant-pagination-options) {
+  :global(.select-biz-modal .ant-pagination-options) {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
