@@ -1,6 +1,6 @@
 {
   "name": "@vben/web-antd",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "homepage": "https://vben.pro",
   "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
   "repository": {
@@ -42,6 +42,7 @@
     "@vben/utils": "workspace:*",
     "@vueuse/core": "catalog:",
     "ant-design-vue": "catalog:",
+    "cron-parser": "^4.9.0",
     "dayjs": "catalog:",
     "pinia": "catalog:",
     "vue": "catalog:",
