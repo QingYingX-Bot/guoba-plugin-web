@@ -8,7 +8,9 @@ import { useAppConfig } from '@vben/hooks';
 import { IconifyIcon } from '@vben/icons';
 import { useAccessStore } from '@vben/stores';
 
-import { Button, Card, Space, Tag, Tooltip, Typography, message } from 'ant-design-vue';
+import { Button, Card, Input, Space, Tag, Tooltip, Typography, message } from 'ant-design-vue';
+
+import { sendGuobaConsoleInputApi } from '#/api';
 
 import ConsoleLogPanel from './components/ConsoleLogPanel.vue';
 
@@ -18,6 +20,8 @@ const eventSource = shallowRef<EventSource>();
 const events = ref<GuobaConsoleStreamEvent[]>([]);
 const status = ref<'closed' | 'connecting' | 'open'>('closed');
 const autoScroll = ref(true);
+const commandText = ref('');
+const sending = ref(false);
 const panelRef = ref<HTMLElement>();
 
 const connected = computed(() => status.value === 'open');
@@ -100,6 +104,31 @@ function clearConsole() {
   events.value = [];
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : '命令发送失败';
+}
+
+async function sendCommand() {
+  if (sending.value) {
+    return;
+  }
+  const command = commandText.value.trim();
+  if (!command) {
+    message.warning('请输入命令');
+    return;
+  }
+  sending.value = true;
+  try {
+    await sendGuobaConsoleInputApi({ command });
+    commandText.value = '';
+    message.success('命令已发送');
+  } catch (error) {
+    message.error(getErrorMessage(error));
+  } finally {
+    sending.value = false;
+  }
+}
+
 onMounted(() => {
   connect();
 });
@@ -135,6 +164,16 @@ onBeforeUnmount(() => {
       <Typography.Text class="console-meta" type="secondary">
         {{ metaText }}
       </Typography.Text>
+      <div class="console-command">
+        <Input.Search
+          v-model:value="commandText"
+          :disabled="sending"
+          :loading="sending"
+          enter-button="发送"
+          placeholder="输入 stdin 命令"
+          @search="sendCommand"
+        />
+      </div>
       <div ref="panelRef">
         <ConsoleLogPanel :items="events" />
       </div>
@@ -147,5 +186,9 @@ onBeforeUnmount(() => {
   display: block;
   margin-bottom: 10px;
   word-break: break-all;
+}
+
+.console-command {
+  margin-bottom: 10px;
 }
 </style>

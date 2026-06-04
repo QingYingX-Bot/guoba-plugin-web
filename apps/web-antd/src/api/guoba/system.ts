@@ -142,6 +142,15 @@ export interface GuobaConsoleStreamHello {
   replay: GuobaConsoleStreamEvent[];
 }
 
+export interface GuobaConsoleInputRequest {
+  command: string;
+}
+
+export interface GuobaConsoleInputResult {
+  command: string;
+  sentAt: string;
+}
+
 /**
  * 获取仪表盘聚合数据
  */
@@ -170,6 +179,10 @@ export async function getGuobaConsoleLogsApi(params?: {
   type?: GuobaConsoleLogType;
 }) {
   return requestClient.get<GuobaConsoleLogResult>('/console/logs', { params });
+}
+
+export async function sendGuobaConsoleInputApi(data: GuobaConsoleInputRequest) {
+  return requestClient.post<GuobaConsoleInputResult>('/console/input', data);
 }
 
 export async function sendGuobaMessageApi(data: GuobaMessageSendRequest) {

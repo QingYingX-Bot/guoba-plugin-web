@@ -1,29 +1,11 @@
 <script lang="ts" setup>
 import type { GuobaConsoleStreamEvent } from '#/api';
 
-import { Empty, Tag } from 'ant-design-vue';
+import { Empty } from 'ant-design-vue';
 
 defineProps<{
   items: GuobaConsoleStreamEvent[];
 }>();
-
-function getLevelColor(level?: string) {
-  const value = String(level || '').toUpperCase();
-  if (value.includes('ERR')) {
-    return 'red';
-  }
-  if (value.includes('WARN')) {
-    return 'orange';
-  }
-  if (value.includes('MARK')) {
-    return 'green';
-  }
-  return 'blue';
-}
-
-function formatTime(value: string) {
-  return value ? value.replace('T', ' ').slice(11, 23) : '--:--:--.---';
-}
 </script>
 
 <template>
@@ -31,11 +13,6 @@ function formatTime(value: string) {
     <div v-if="items.length > 0" class="console-lines">
       <div v-for="item in items" :key="item.id" class="console-line">
         <span class="console-line__no">#{{ item.id }}</span>
-        <span class="console-line__time">{{ formatTime(item.createdAt) }}</span>
-        <Tag v-if="item.level" :color="getLevelColor(item.level)" class="console-line__level">
-          {{ item.level }}
-        </Tag>
-        <span class="console-line__source">{{ item.source }}</span>
         <span class="console-line__text">{{ item.content }}</span>
       </div>
     </div>
@@ -61,7 +38,7 @@ function formatTime(value: string) {
 
 .console-line {
   display: grid;
-  grid-template-columns: 72px 108px 72px 72px minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr);
   gap: 8px;
   align-items: start;
   padding: 2px 12px;
@@ -70,16 +47,9 @@ function formatTime(value: string) {
   line-height: 1.6;
 }
 
-.console-line__no,
-.console-line__time,
-.console-line__source {
+.console-line__no {
   color: #94a3b8;
   user-select: none;
-}
-
-.console-line__level {
-  width: fit-content;
-  margin-inline-end: 0;
 }
 
 .console-line__text {
