@@ -1,85 +1,61 @@
 <script lang="ts" setup>
 import type { GuobaUserAccount } from '#/api';
-import type { TableColumnsType } from 'ant-design-vue';
+import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue';
 
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Space, Table, Tag, message } from 'ant-design-vue';
+import { Button, Card, Input, Space, Table, Tag, message } from 'ant-design-vue';
 
-import { getUserListApi, setUserAccountStatusApi } from '#/api';
+import { getAccountsApi, setUserAccountStatusApi } from '#/api';
+
+import AccountDetailDrawer from './components/AccountDetailDrawer.vue';
 
 const accountListLoading = ref(false);
 const accountList = ref<GuobaUserAccount[]>([]);
 const actionPendingMap = ref<Record<string, boolean>>({});
+const keyword = ref('');
+const detailOpen = ref(false);
+const selectedAccountId = ref('');
+const pagination = reactive({ page: 1, pageSize: 20, total: 0 });
 
 const columns: TableColumnsType<GuobaUserAccount> = [
-  {
-    dataIndex: 'index',
-    key: 'index',
-    title: '#',
-    width: 64,
-  },
-  {
-    dataIndex: 'userId',
-    key: 'userId',
-    title: '账号ID',
-    width: 300,
-  },
-  {
-    dataIndex: 'realName',
-    key: 'realName',
-    title: '昵称',
-    width: 200,
-  },
-  {
-    dataIndex: 'platform',
-    key: 'platform',
-    title: '平台',
-    width: 140,
-  },
-  {
-    key: 'adapter',
-    title: '适配器',
-    width: 240,
-  },
-  {
-    dataIndex: 'friendCount',
-    key: 'friendCount',
-    title: '好友数',
-    width: 110,
-  },
-  {
-    dataIndex: 'groupCount',
-    key: 'groupCount',
-    title: '群/频道数',
-    width: 130,
-  },
-  {
-    dataIndex: 'onlineDuration',
-    key: 'onlineDuration',
-    title: '在线时长',
-    width: 180,
-  },
-  {
-    key: 'status',
-    title: '状态',
-    width: 120,
-  },
-  {
-    key: 'action',
-    title: '操作',
-    width: 140,
-  },
+  { dataIndex: 'index', key: 'index', title: '#', width: 64 },
+  { dataIndex: 'userId', key: 'userId', title: '账号ID', width: 240 },
+  { dataIndex: 'realName', key: 'realName', title: '昵称', width: 180 },
+  { dataIndex: 'platform', key: 'platform', title: '平台', width: 120 },
+  { key: 'adapter', title: '适配器', width: 220 },
+  { key: 'meta', title: '备注', width: 180 },
+  { dataIndex: 'friendCount', key: 'friendCount', title: '好友数', width: 100 },
+  { dataIndex: 'groupCount', key: 'groupCount', title: '群/频道数', width: 120 },
+  { dataIndex: 'onlineDuration', key: 'onlineDuration', title: '在线时长', width: 150 },
+  { key: 'status', title: '状态', width: 100 },
+  { key: 'action', title: '操作', width: 210 },
 ];
+
+const tablePagination = computed(() => ({
+  current: pagination.page,
+  pageSize: pagination.pageSize,
+  showSizeChanger: true,
+  total: pagination.total,
+}));
 
 function isActionPending(userId: string) {
   return !!actionPendingMap.value[userId];
 }
 
-function toUserAccount(record: Record<string, any>) {
+function toUserAccount(record: unknown) {
   return record as GuobaUserAccount;
+}
+
+function openDetail(record: GuobaUserAccount) {
+  selectedAccountId.value = record.userId;
+  detailOpen.value = true;
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : '操作失败';
 }
 
 async function updateAccountStatus(record: GuobaUserAccount, action: 'disable' | 'enable') {
@@ -87,14 +63,13 @@ async function updateAccountStatus(record: GuobaUserAccount, action: 'disable' |
   if (!userId || isActionPending(userId)) {
     return;
   }
-
   actionPendingMap.value[userId] = true;
   try {
     await setUserAccountStatusApi({ action, userId });
     message.success(action === 'enable' ? '已发送启用操作' : '已发送禁用操作');
     await loadAccountList();
-  } catch (error: any) {
-    message.error(error?.message || '操作失败');
+  } catch (error: unknown) {
+    message.error(getErrorMessage(error));
   } finally {
     actionPendingMap.value[userId] = false;
   }
@@ -103,10 +78,27 @@ async function updateAccountStatus(record: GuobaUserAccount, action: 'disable' |
 async function loadAccountList() {
   accountListLoading.value = true;
   try {
-    accountList.value = (await getUserListApi()) ?? [];
+    const page = await getAccountsApi({
+      keyword: keyword.value.trim(),
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+    });
+    accountList.value = page?.items ?? [];
+    pagination.total = page?.total ?? 0;
   } finally {
     accountListLoading.value = false;
   }
+}
+
+function handleSearch() {
+  pagination.page = 1;
+  loadAccountList();
+}
+
+function handleTableChange(next: TablePaginationConfig) {
+  pagination.page = Number(next.current || 1);
+  pagination.pageSize = Number(next.pageSize || 20);
+  loadAccountList();
 }
 
 onMounted(() => {
@@ -119,12 +111,9 @@ onMounted(() => {
     <Card title="账号列表">
       <template #extra>
         <Space>
-          <Tag color="blue">
-            共 {{ accountList.length }} 个账号
-          </Tag>
-          <Button :loading="accountListLoading" @click="loadAccountList">
-            刷新列表
-          </Button>
+          <Input v-model:value="keyword" allow-clear placeholder="账号、昵称、平台" @press-enter="handleSearch" />
+          <Button type="primary" @click="handleSearch">搜索</Button>
+          <Button :loading="accountListLoading" @click="loadAccountList">刷新</Button>
         </Space>
       </template>
 
@@ -132,47 +121,52 @@ onMounted(() => {
         :columns="columns"
         :data-source="accountList"
         :loading="accountListLoading"
-        :pagination="{ pageSize: 20, showSizeChanger: true }"
-        :scroll="{ x: 1540 }"
+        :pagination="tablePagination"
+        :scroll="{ x: 1680 }"
         row-key="userId"
+        @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'adapter'">
-            {{
-              record.adapterName
-                ? `${record.adapterName}${record.adapterId ? ` (${record.adapterId})` : ''}`
-                : record.adapterId || '-'
-            }}
+            {{ record.adapterName ? `${record.adapterName}${record.adapterId ? ` (${record.adapterId})` : ''}` : record.adapterId || '-' }}
           </template>
-
+          <template v-else-if="column.key === 'meta'">
+            {{ record.meta?.remark || '-' }}
+          </template>
           <template v-else-if="column.key === 'status'">
             <Tag :color="record.status === 'online' ? 'success' : 'default'">
               {{ record.status === 'online' ? '在线' : '离线' }}
             </Tag>
           </template>
-
           <template v-else-if="column.key === 'action'">
-            <template v-if="record.status === 'online'">
+            <Space>
+              <Button @click="openDetail(toUserAccount(record))">详情</Button>
               <Button
+                v-if="record.status === 'online'"
                 danger
                 :disabled="record.canDisable === false || isActionPending(record.userId)"
                 @click="updateAccountStatus(toUserAccount(record), 'disable')"
               >
                 禁用
               </Button>
-            </template>
-            <template v-else>
               <Button
+                v-else
                 type="primary"
                 :disabled="record.canEnable === false || isActionPending(record.userId)"
                 @click="updateAccountStatus(toUserAccount(record), 'enable')"
               >
                 启用
               </Button>
-            </template>
+            </Space>
           </template>
         </template>
       </Table>
     </Card>
+
+    <AccountDetailDrawer
+      v-model:open="detailOpen"
+      :account-id="selectedAccountId"
+      @saved="loadAccountList"
+    />
   </Page>
 </template>

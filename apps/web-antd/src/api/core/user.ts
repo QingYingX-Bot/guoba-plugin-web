@@ -18,6 +18,19 @@ export interface GuobaUserProfile {
   displayName?: string;
 }
 
+export interface GuobaPage<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface GuobaAccountMeta {
+  defaultAccount?: boolean;
+  remark?: string;
+  tags?: string[];
+}
+
 export interface GuobaUserAccount {
   adapterId?: string;
   adapterName?: string;
@@ -32,8 +45,39 @@ export interface GuobaUserAccount {
   platform?: string;
   realName?: string;
   status?: 'offline' | 'online';
+  meta?: GuobaAccountMeta;
   userId: string;
   username?: string;
+}
+
+export interface GuobaAccountCapabilities {
+  canManageStatus?: boolean;
+  canReadContacts?: boolean;
+  canReconnect?: boolean;
+  canSendGroup?: boolean;
+  canSendPrivate?: boolean;
+}
+
+export interface GuobaAccountDiagnostics {
+  adapterId?: string;
+  adapterName?: string;
+  exists?: boolean;
+  hasLogin?: boolean;
+  hasLogout?: boolean;
+  hasReconnect?: boolean;
+  wsReadyState?: null | number;
+}
+
+export type GuobaAccountDetail = GuobaUserAccount & {
+  capabilities?: GuobaAccountCapabilities;
+  diagnostics?: GuobaAccountDiagnostics;
+};
+
+export interface GuobaContactTarget {
+  id: string;
+  memberCount?: number;
+  name: string;
+  remark?: string;
 }
 
 /**
@@ -64,6 +108,56 @@ export async function getUserListApi() {
   return requestClient.get<GuobaUserAccount[]>('/user/list');
 }
 
+export async function getAccountsApi(params?: {
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  return requestClient.get<GuobaPage<GuobaUserAccount>>('/accounts', { params });
+}
+
+export async function getAccountDetailApi(userId: string) {
+  return requestClient.get<GuobaAccountDetail>(
+    `/accounts/${encodeURIComponent(userId)}`,
+  );
+}
+
+export async function getAccountDiagnosticsApi(userId: string) {
+  return requestClient.get<GuobaAccountDiagnostics>(
+    `/accounts/${encodeURIComponent(userId)}/diagnostics`,
+  );
+}
+
+export async function getAccountFriendsApi(
+  userId: string,
+  params?: { keyword?: string; page?: number; pageSize?: number },
+) {
+  return requestClient.get<GuobaPage<GuobaContactTarget>>(
+    `/accounts/${encodeURIComponent(userId)}/friends`,
+    { params },
+  );
+}
+
+export async function getAccountGroupsApi(
+  userId: string,
+  params?: { keyword?: string; page?: number; pageSize?: number },
+) {
+  return requestClient.get<GuobaPage<GuobaContactTarget>>(
+    `/accounts/${encodeURIComponent(userId)}/groups`,
+    { params },
+  );
+}
+
+export async function updateAccountProfileApi(
+  userId: string,
+  data: GuobaAccountMeta,
+) {
+  return requestClient.put<GuobaAccountMeta>(
+    `/accounts/${encodeURIComponent(userId)}/profile`,
+    data,
+  );
+}
+
 /**
  * 获取面板资料设置
  */
@@ -85,5 +179,8 @@ export async function setUserAccountStatusApi(data: {
   action: 'disable' | 'enable';
   userId: string;
 }) {
-  return requestClient.put<boolean>('/user/account/status', data);
+  return requestClient.put<{ status: string; userId: string }>(
+    `/accounts/${encodeURIComponent(data.userId)}/status`,
+    { action: data.action },
+  );
 }
