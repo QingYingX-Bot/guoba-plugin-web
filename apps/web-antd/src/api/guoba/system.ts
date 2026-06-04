@@ -4,6 +4,7 @@ import type { GuobaPage } from '../core/user';
 import type { GuobaDashboardData } from './types';
 
 export type GuobaMessageTargetType = 'group' | 'private';
+export type GuobaPluginTaskStatus = 'inactive' | 'scheduled';
 export type GuobaTaskStatus = 'failed' | 'pending' | 'running' | 'success';
 
 export interface GuobaMessageSendRequest {
@@ -40,6 +41,19 @@ export interface GuobaTaskRecord {
   title: string;
   type: string;
   updatedAt: string;
+}
+
+export interface GuobaPluginTaskRecord {
+  cron: string;
+  functionName: string;
+  id: string;
+  log: boolean;
+  nextRunAt: string;
+  pluginDescription: string;
+  pluginId: string;
+  pluginName: string;
+  status: GuobaPluginTaskStatus;
+  taskName: string;
 }
 
 export interface GuobaFileLocation {
@@ -112,6 +126,15 @@ export async function getGuobaTasksApi(params?: {
   type?: string;
 }) {
   return requestClient.get<GuobaPage<GuobaTaskRecord>>('/tasks', { params });
+}
+
+export async function getGuobaPluginTasksApi(params?: {
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+  status?: GuobaPluginTaskStatus | '';
+}) {
+  return requestClient.get<GuobaPage<GuobaPluginTaskRecord>>('/tasks/plugin', { params });
 }
 
 export async function getGuobaTaskApi(id: string) {

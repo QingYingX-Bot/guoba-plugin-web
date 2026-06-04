@@ -1,27 +1,42 @@
 <script lang="ts" setup>
-import type { GuobaTaskRecord } from '#/api';
+import type { GuobaPluginTaskRecord, GuobaPluginTaskStatus, GuobaTaskRecord } from '#/api';
 import type { TablePaginationConfig } from 'ant-design-vue';
 
 import { computed, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
-import { Button, Card, Input, Select, Space } from 'ant-design-vue';
+import { Button, Card, Input, Select, Space, Tabs } from 'ant-design-vue';
 
-import { getGuobaTasksApi } from '#/api';
+import { getGuobaPluginTasksApi, getGuobaTasksApi } from '#/api';
 
+import PluginTaskTable from '../_components/PluginTaskTable.vue';
 import TaskTable from '../_components/TaskTable.vue';
 
-const loading = ref(false);
-const tasks = ref<GuobaTaskRecord[]>([]);
-const filters = reactive({
+const activeTab = ref('plugin');
+const pluginLoading = ref(false);
+const recordLoading = ref(false);
+const recordLoaded = ref(false);
+const pluginTasks = ref<GuobaPluginTaskRecord[]>([]);
+const records = ref<GuobaTaskRecord[]>([]);
+const pluginFilters = reactive({
+  keyword: '',
+  status: '' as '' | GuobaPluginTaskStatus,
+});
+const recordFilters = reactive({
   keyword: '',
   status: '',
   type: '',
 });
-const pagination = reactive({ page: 1, pageSize: 20, total: 0 });
+const pluginPagination = reactive({ page: 1, pageSize: 20, total: 0 });
+const recordPagination = reactive({ page: 1, pageSize: 20, total: 0 });
 
-const statusOptions = [
+const pluginStatusOptions = [
+  { label: '全部状态', value: '' },
+  { label: '已注册', value: 'scheduled' },
+  { label: '未注册', value: 'inactive' },
+];
+const recordStatusOptions = [
   { label: '全部状态', value: '' },
   { label: '待执行', value: 'pending' },
   { label: '执行中', value: 'running' },
@@ -32,65 +47,129 @@ const typeOptions = [
   { label: '全部类型', value: '' },
   { label: '代发消息', value: 'message.send' },
 ];
-const tablePagination = computed<TablePaginationConfig>(() => ({
-  current: pagination.page,
-  pageSize: pagination.pageSize,
+
+const pluginTablePagination = computed<TablePaginationConfig>(() => ({
+  current: pluginPagination.page,
+  pageSize: pluginPagination.pageSize,
   showSizeChanger: true,
-  total: pagination.total,
+  total: pluginPagination.total,
+}));
+const recordTablePagination = computed<TablePaginationConfig>(() => ({
+  current: recordPagination.page,
+  pageSize: recordPagination.pageSize,
+  showSizeChanger: true,
+  total: recordPagination.total,
 }));
 
-async function loadTasks() {
-  loading.value = true;
+async function loadPluginTasks() {
+  pluginLoading.value = true;
   try {
-    const page = await getGuobaTasksApi({
-      keyword: filters.keyword.trim(),
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-      status: filters.status,
-      type: filters.type,
+    const page = await getGuobaPluginTasksApi({
+      keyword: pluginFilters.keyword.trim(),
+      page: pluginPagination.page,
+      pageSize: pluginPagination.pageSize,
+      status: pluginFilters.status,
     });
-    tasks.value = page?.items ?? [];
-    pagination.total = page?.total ?? 0;
+    pluginTasks.value = page?.items ?? [];
+    pluginPagination.total = page?.total ?? 0;
   } finally {
-    loading.value = false;
+    pluginLoading.value = false;
   }
 }
 
-function handleSearch() {
-  pagination.page = 1;
-  loadTasks();
+async function loadRecords() {
+  recordLoading.value = true;
+  try {
+    const page = await getGuobaTasksApi({
+      keyword: recordFilters.keyword.trim(),
+      page: recordPagination.page,
+      pageSize: recordPagination.pageSize,
+      status: recordFilters.status,
+      type: recordFilters.type,
+    });
+    records.value = page?.items ?? [];
+    recordPagination.total = page?.total ?? 0;
+    recordLoaded.value = true;
+  } finally {
+    recordLoading.value = false;
+  }
 }
 
-function handleTableChange(next: TablePaginationConfig) {
-  pagination.page = Number(next.current || 1);
-  pagination.pageSize = Number(next.pageSize || 20);
-  loadTasks();
+function handlePluginSearch() {
+  pluginPagination.page = 1;
+  loadPluginTasks();
+}
+
+function handleRecordSearch() {
+  recordPagination.page = 1;
+  loadRecords();
+}
+
+function handlePluginTableChange(next: TablePaginationConfig) {
+  pluginPagination.page = Number(next.current || 1);
+  pluginPagination.pageSize = Number(next.pageSize || 20);
+  loadPluginTasks();
+}
+
+function handleRecordTableChange(next: TablePaginationConfig) {
+  recordPagination.page = Number(next.current || 1);
+  recordPagination.pageSize = Number(next.pageSize || 20);
+  loadRecords();
+}
+
+function handleTabChange(key: string | number) {
+  if (String(key) === 'records' && !recordLoaded.value) {
+    loadRecords();
+  }
 }
 
 onMounted(() => {
-  loadTasks();
+  loadPluginTasks();
 });
 </script>
 
 <template>
   <Page title="任务管理">
-    <Card title="任务列表">
-      <template #extra>
-        <Space wrap>
-          <Input v-model:value="filters.keyword" allow-clear placeholder="任务、账号、目标" @press-enter="handleSearch" />
-          <Select v-model:value="filters.status" :options="statusOptions" class="task-filter" />
-          <Select v-model:value="filters.type" :options="typeOptions" class="task-filter" />
-          <Button type="primary" @click="handleSearch">搜索</Button>
-          <Button :loading="loading" @click="loadTasks">刷新</Button>
-        </Space>
-      </template>
-      <TaskTable
-        :loading="loading"
-        :pagination="tablePagination"
-        :tasks="tasks"
-        @change="handleTableChange"
-      />
-    </Card>
+    <Tabs v-model:activeKey="activeTab" @change="handleTabChange">
+      <Tabs.TabPane key="plugin" tab="插件任务">
+        <Card title="插件定时任务">
+          <template #extra>
+            <Space wrap>
+              <Input v-model:value="pluginFilters.keyword" allow-clear placeholder="插件、任务、Cron" @press-enter="handlePluginSearch" />
+              <Select v-model:value="pluginFilters.status" :options="pluginStatusOptions" class="task-filter" />
+              <Button type="primary" @click="handlePluginSearch">搜索</Button>
+              <Button :loading="pluginLoading" @click="loadPluginTasks">刷新</Button>
+            </Space>
+          </template>
+          <PluginTaskTable
+            :loading="pluginLoading"
+            :pagination="pluginTablePagination"
+            :tasks="pluginTasks"
+            @change="handlePluginTableChange"
+          />
+        </Card>
+      </Tabs.TabPane>
+
+      <Tabs.TabPane key="records" tab="执行记录">
+        <Card title="后台执行记录">
+          <template #extra>
+            <Space wrap>
+              <Input v-model:value="recordFilters.keyword" allow-clear placeholder="任务、账号、目标" @press-enter="handleRecordSearch" />
+              <Select v-model:value="recordFilters.status" :options="recordStatusOptions" class="task-filter" />
+              <Select v-model:value="recordFilters.type" :options="typeOptions" class="task-filter" />
+              <Button type="primary" @click="handleRecordSearch">搜索</Button>
+              <Button :loading="recordLoading" @click="loadRecords">刷新</Button>
+            </Space>
+          </template>
+          <TaskTable
+            :loading="recordLoading"
+            :pagination="recordTablePagination"
+            :tasks="records"
+            @change="handleRecordTableChange"
+          />
+        </Card>
+      </Tabs.TabPane>
+    </Tabs>
   </Page>
 </template>
 
