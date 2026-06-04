@@ -1,5 +1,9 @@
 <script lang="ts" setup>
-import type { GuobaSandboxEnvironment, GuobaSandboxRecord } from '#/api';
+import type {
+  GuobaSandboxChatInput,
+  GuobaSandboxEnvironment,
+  GuobaSandboxRecord,
+} from '#/api';
 
 import { computed } from 'vue';
 
@@ -14,7 +18,10 @@ import {
   Tag,
 } from 'ant-design-vue';
 
+import SandboxChatForm from './SandboxChatForm.vue';
+
 const props = defineProps<{
+  chat: GuobaSandboxChatInput;
   code: string;
   environments: GuobaSandboxEnvironment[];
   record?: GuobaSandboxRecord;
@@ -24,6 +31,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'run'): void;
+  (event: 'update:chat', value: GuobaSandboxChatInput): void;
   (event: 'update:code', value: string): void;
   (event: 'update:selectedId', value: string): void;
 }>();
@@ -61,12 +69,18 @@ function getStatusColor(status?: string) {
       </Space>
     </template>
     <div class="runner-grid">
-      <Input.TextArea
-        :auto-size="{ minRows: 14, maxRows: 24 }"
-        :value="code"
-        class="code-input"
-        @update:value="(value) => emit('update:code', String(value))"
-      />
+      <div class="editor-pane">
+        <SandboxChatForm
+          :chat="chat"
+          @update:chat="(value) => emit('update:chat', value)"
+        />
+        <Input.TextArea
+          :auto-size="{ minRows: 14, maxRows: 24 }"
+          :value="code"
+          class="code-input"
+          @update:value="(value) => emit('update:code', String(value))"
+        />
+      </div>
       <div class="result-pane">
         <template v-if="record">
           <Descriptions bordered :column="2" size="small">
@@ -86,6 +100,12 @@ function getStatusColor(status?: string) {
           <div class="output-block">
             <strong>返回值</strong>
             <pre>{{ record.result || '-' }}</pre>
+          </div>
+          <div v-if="record.replies?.length" class="output-block">
+            <strong>模拟回复</strong>
+            <div class="reply-list">
+              <pre v-for="item in record.replies" :key="item.messageId">{{ item.content }}</pre>
+            </div>
           </div>
           <div v-if="record.error" class="output-block">
             <strong>错误</strong>
@@ -110,13 +130,15 @@ function getStatusColor(status?: string) {
 }
 
 .code-input,
+.editor-pane,
 .result-pane {
   min-width: 0;
 }
 
+.editor-pane,
 .result-pane {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .output-block {
@@ -139,6 +161,11 @@ function getStatusColor(status?: string) {
   padding: 8px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.reply-list {
+  display: grid;
+  gap: 6px;
 }
 
 @media (max-width: 1100px) {

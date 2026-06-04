@@ -3,6 +3,27 @@ import { requestClient } from '#/api/request';
 import type { GuobaPage } from '../core/user';
 
 export type GuobaSandboxRecordStatus = 'failed' | 'running' | 'success';
+export type GuobaSandboxChatType = 'group' | 'private';
+
+export interface GuobaSandboxChatInput {
+  atBot?: boolean;
+  groupId?: string;
+  groupName?: string;
+  isMaster?: boolean;
+  message: string;
+  messageType: GuobaSandboxChatType;
+  rawMessage?: string;
+  selfId: string;
+  senderName?: string;
+  userId: string;
+}
+
+export interface GuobaSandboxReply {
+  content: string;
+  createdAt: string;
+  messageId: string;
+  quote?: boolean;
+}
 
 export interface GuobaSandboxEnvironment {
   allowedCommands: string[];
@@ -19,6 +40,7 @@ export interface GuobaSandboxEnvironment {
 }
 
 export interface GuobaSandboxRecord {
+  chat?: GuobaSandboxChatInput;
   codePreview: string;
   duration: number;
   environmentId: string;
@@ -27,6 +49,7 @@ export interface GuobaSandboxRecord {
   finishedAt: string;
   id: string;
   output: string;
+  replies?: GuobaSandboxReply[];
   result: string;
   startedAt: string;
   status: GuobaSandboxRecordStatus;
@@ -82,6 +105,7 @@ export async function toggleGuobaSandboxEnvironmentApi(
 }
 
 export async function runGuobaSandboxApi(data: {
+  chat?: GuobaSandboxChatInput;
   code: string;
   environmentId: string;
 }) {

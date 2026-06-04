@@ -23,11 +23,7 @@ import SandboxEnvironmentModal from './components/SandboxEnvironmentModal.vue';
 import SandboxEnvironmentPane from './components/SandboxEnvironmentPane.vue';
 import SandboxRecordTable from './components/SandboxRecordTable.vue';
 import SandboxRunnerPane from './components/SandboxRunnerPane.vue';
-
-const defaultCode =
-  `console.log('hello guoba sandbox');\n` +
-  `console.log(sandbox.fs.list('plugins/example').map((item) => item.name));\n` +
-  `return sandbox.env;`;
+import { defaultSandboxChat, defaultSandboxCode } from './sandboxDefaults';
 
 const loading = ref(false);
 const running = ref(false);
@@ -35,7 +31,8 @@ const saving = ref(false);
 const recordLoading = ref(false);
 const environments = ref<GuobaSandboxEnvironment[]>([]);
 const selectedId = ref('');
-const code = ref(defaultCode);
+const code = ref(defaultSandboxCode);
+const chat = reactive({ ...defaultSandboxChat });
 const latestRecord = ref<GuobaSandboxRecord>();
 const records = ref<GuobaSandboxRecord[]>([]);
 const editingEnvironment = ref<GuobaSandboxEnvironment>();
@@ -85,7 +82,7 @@ async function runCode() {
   }
   running.value = true;
   try {
-    latestRecord.value = await runGuobaSandboxApi({ code: code.value, environmentId: selectedId.value });
+    latestRecord.value = await runGuobaSandboxApi({ chat: { ...chat }, code: code.value, environmentId: selectedId.value });
     message[latestRecord.value.status === 'success' ? 'success' : 'error']('运行完成');
     recordPagination.page = 1;
     await loadRecords();
@@ -170,12 +167,14 @@ onMounted(async () => {
         @toggle="toggleEnvironment"
       />
       <SandboxRunnerPane
+        :chat="chat"
         v-model:code="code"
         v-model:selected-id="selectedId"
         :environments="environments"
         :record="latestRecord"
         :running="running"
         @run="runCode"
+        @update:chat="(value) => Object.assign(chat, value)"
       />
       <SandboxRecordTable
         :loading="recordLoading"
