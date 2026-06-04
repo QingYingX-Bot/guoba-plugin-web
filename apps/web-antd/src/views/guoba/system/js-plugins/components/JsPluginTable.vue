@@ -66,7 +66,7 @@ function toJsPlugin(record: unknown) {
       <template v-if="column.key === 'file'">
         <div class="file-cell">
           <strong>{{ record.moduleFile }}</strong>
-          <span>{{ record.pluginFolder }} / {{ record.relativePath }}</span>
+          <span>plugins/{{ record.relativePath }}</span>
         </div>
       </template>
       <template v-else-if="column.key === 'meta'">

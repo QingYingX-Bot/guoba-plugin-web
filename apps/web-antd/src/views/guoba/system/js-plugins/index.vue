@@ -128,13 +128,13 @@ onMounted(() => {
 
 <template>
   <Page title="JS插件管理">
-    <Card title="JS插件文件">
+    <Card title="plugins/example">
       <template #extra>
         <Space wrap>
           <Input
             v-model:value="filters.keyword"
             allow-clear
-            placeholder="插件、文件、名称"
+            placeholder="文件、名称、规则"
             @press-enter="handleSearch"
           />
           <Select v-model:value="filters.status" :options="statusOptions" class="status-filter" />
