@@ -2,16 +2,11 @@
 import type { GuobaAccountDetail, GuobaContactTarget, GuobaPage } from '#/api';
 import type { TableColumnsType } from 'ant-design-vue';
 
-import { reactive, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 
 import {
-  Button,
   Descriptions,
   Drawer,
-  Form,
-  Input,
-  message,
-  Switch,
   Table,
   Tabs,
   Tag,
@@ -21,7 +16,6 @@ import {
   getAccountDetailApi,
   getAccountFriendsApi,
   getAccountGroupsApi,
-  updateAccountProfileApi,
 } from '#/api';
 
 const props = defineProps<{
@@ -30,25 +24,17 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  saved: [];
   'update:open': [value: boolean];
 }>();
 
 const loading = ref(false);
-const saving = ref(false);
 const detail = ref<GuobaAccountDetail>();
 const friends = ref<GuobaContactTarget[]>([]);
 const groups = ref<GuobaContactTarget[]>([]);
-const formState = reactive({
-  defaultAccount: false,
-  remark: '',
-  tagsText: '',
-});
 
 const targetColumns: TableColumnsType<GuobaContactTarget> = [
   { dataIndex: 'id', key: 'id', title: 'ID', width: 180 },
   { dataIndex: 'name', key: 'name', title: '名称' },
-  { dataIndex: 'remark', key: 'remark', title: '备注', width: 180 },
 ];
 const groupColumns: TableColumnsType<GuobaContactTarget> = [
   { dataIndex: 'id', key: 'id', title: 'ID', width: 180 },
@@ -58,13 +44,6 @@ const groupColumns: TableColumnsType<GuobaContactTarget> = [
 
 function closeDrawer() {
   emit('update:open', false);
-}
-
-function syncForm(account?: GuobaAccountDetail) {
-  const meta = account?.meta ?? {};
-  formState.remark = meta.remark ?? '';
-  formState.tagsText = (meta.tags ?? []).join(', ');
-  formState.defaultAccount = meta.defaultAccount === true;
 }
 
 async function loadDetail() {
@@ -82,7 +61,6 @@ async function loadDetail() {
     detail.value = nextDetail;
     friends.value = normalizePage(friendPage);
     groups.value = normalizePage(groupPage);
-    syncForm(nextDetail);
   } finally {
     loading.value = false;
   }
@@ -90,29 +68,6 @@ async function loadDetail() {
 
 function normalizePage(page?: GuobaPage<GuobaContactTarget>) {
   return Array.isArray(page?.items) ? page.items : [];
-}
-
-async function saveProfile() {
-  if (!props.accountId) {
-    return;
-  }
-  saving.value = true;
-  try {
-    const tags = formState.tagsText
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
-    await updateAccountProfileApi(props.accountId, {
-      defaultAccount: formState.defaultAccount,
-      remark: formState.remark,
-      tags,
-    });
-    message.success('账号资料已保存');
-    emit('saved');
-    await loadDetail();
-  } finally {
-    saving.value = false;
-  }
 }
 
 watch(() => [props.open, props.accountId], loadDetail, { immediate: true });
@@ -142,21 +97,6 @@ watch(() => [props.open, props.accountId], loadDetail, { immediate: true });
             群聊 {{ detail?.capabilities?.canSendGroup ? '支持' : '受限' }}
           </Descriptions.Item>
         </Descriptions>
-
-        <Form class="mt-4" layout="vertical">
-          <Form.Item label="账号备注">
-            <Input v-model:value="formState.remark" placeholder="用于面板内识别" />
-          </Form.Item>
-          <Form.Item label="标签">
-            <Input v-model:value="formState.tagsText" placeholder="多个标签用英文逗号分隔" />
-          </Form.Item>
-          <Form.Item label="默认账号">
-            <Switch v-model:checked="formState.defaultAccount" />
-          </Form.Item>
-          <Button type="primary" :loading="saving" @click="saveProfile">
-            保存资料
-          </Button>
-        </Form>
       </Tabs.TabPane>
 
       <Tabs.TabPane key="diagnostics" tab="诊断">

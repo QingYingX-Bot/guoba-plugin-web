@@ -25,12 +25,6 @@ export interface GuobaPage<T> {
   total: number;
 }
 
-export interface GuobaAccountMeta {
-  defaultAccount?: boolean;
-  remark?: string;
-  tags?: string[];
-}
-
 export interface GuobaUserAccount {
   adapterId?: string;
   adapterName?: string;
@@ -45,7 +39,6 @@ export interface GuobaUserAccount {
   platform?: string;
   realName?: string;
   status?: 'offline' | 'online';
-  meta?: GuobaAccountMeta;
   userId: string;
   username?: string;
 }
@@ -77,7 +70,6 @@ export interface GuobaContactTarget {
   id: string;
   memberCount?: number;
   name: string;
-  remark?: string;
 }
 
 /**
@@ -145,16 +137,6 @@ export async function getAccountGroupsApi(
   return requestClient.get<GuobaPage<GuobaContactTarget>>(
     `/accounts/${encodeURIComponent(userId)}/groups`,
     { params },
-  );
-}
-
-export async function updateAccountProfileApi(
-  userId: string,
-  data: GuobaAccountMeta,
-) {
-  return requestClient.put<GuobaAccountMeta>(
-    `/accounts/${encodeURIComponent(userId)}/profile`,
-    data,
   );
 }
 

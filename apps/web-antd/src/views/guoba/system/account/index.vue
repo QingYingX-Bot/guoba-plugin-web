@@ -26,7 +26,6 @@ const columns: TableColumnsType<GuobaUserAccount> = [
   { dataIndex: 'realName', key: 'realName', title: '昵称', width: 180 },
   { dataIndex: 'platform', key: 'platform', title: '平台', width: 120 },
   { key: 'adapter', title: '适配器', width: 220 },
-  { key: 'meta', title: '备注', width: 180 },
   { dataIndex: 'friendCount', key: 'friendCount', title: '好友数', width: 100 },
   { dataIndex: 'groupCount', key: 'groupCount', title: '群/频道数', width: 120 },
   { dataIndex: 'onlineDuration', key: 'onlineDuration', title: '在线时长', width: 150 },
@@ -122,16 +121,13 @@ onMounted(() => {
         :data-source="accountList"
         :loading="accountListLoading"
         :pagination="tablePagination"
-        :scroll="{ x: 1680 }"
+        :scroll="{ x: 1500 }"
         row-key="userId"
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'adapter'">
             {{ record.adapterName ? `${record.adapterName}${record.adapterId ? ` (${record.adapterId})` : ''}` : record.adapterId || '-' }}
-          </template>
-          <template v-else-if="column.key === 'meta'">
-            {{ record.meta?.remark || '-' }}
           </template>
           <template v-else-if="column.key === 'status'">
             <Tag :color="record.status === 'online' ? 'success' : 'default'">
@@ -166,7 +162,6 @@ onMounted(() => {
     <AccountDetailDrawer
       v-model:open="detailOpen"
       :account-id="selectedAccountId"
-      @saved="loadAccountList"
     />
   </Page>
 </template>
