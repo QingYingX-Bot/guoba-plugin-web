@@ -1,19 +1,38 @@
 <script lang="ts" setup>
 import type { GuobaConsoleStreamEvent } from '#/api';
 
+import { computed } from 'vue';
+
 import { Empty } from 'ant-design-vue';
 
-defineProps<{
+import { parseAnsiText } from './ansiText';
+
+const props = defineProps<{
   items: GuobaConsoleStreamEvent[];
 }>();
+
+const renderedItems = computed(() => {
+  return props.items.map(item => ({
+    id: item.id,
+    segments: parseAnsiText(item.raw || item.content),
+  }));
+});
 </script>
 
 <template>
   <div class="console-panel">
-    <div v-if="items.length > 0" class="console-lines">
-      <div v-for="item in items" :key="item.id" class="console-line">
+    <div v-if="renderedItems.length > 0" class="console-lines">
+      <div v-for="item in renderedItems" :key="item.id" class="console-line">
         <span class="console-line__no">#{{ item.id }}</span>
-        <span class="console-line__text">{{ item.content }}</span>
+        <span class="console-line__text">
+          <span
+            v-for="(segment, index) in item.segments"
+            :key="index"
+            :style="segment.style"
+          >
+            {{ segment.text }}
+          </span>
+        </span>
       </div>
     </div>
     <Empty v-else description="等待实时输出" />
