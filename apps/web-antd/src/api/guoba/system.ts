@@ -4,6 +4,7 @@ import type { GuobaPage } from '../core/user';
 import type { GuobaDashboardData } from './types';
 
 export type GuobaMessageTargetType = 'group' | 'private';
+export type GuobaConsoleLogType = 'command' | 'error';
 export type GuobaPluginTaskLogStatus = 'running' | 'success' | 'unknown';
 export type GuobaPluginTaskStatus = 'inactive' | 'scheduled';
 export type GuobaTaskStatus = 'failed' | 'pending' | 'running' | 'success';
@@ -105,6 +106,28 @@ export type GuobaFileReadResult = GuobaFileEntry & {
   encoding: 'utf8';
 };
 
+export interface GuobaConsoleLogItem {
+  content: string;
+  id: string;
+  level: string;
+  lineNo: number;
+  raw: string;
+  time: string;
+}
+
+export interface GuobaConsoleLogResult {
+  date: string;
+  dates: string[];
+  exists: boolean;
+  file: string;
+  items: GuobaConsoleLogItem[];
+  limit: number;
+  total: number;
+  truncated: boolean;
+  type: GuobaConsoleLogType;
+  updatedAt: string;
+}
+
 /**
  * 获取仪表盘聚合数据
  */
@@ -124,6 +147,15 @@ export async function restartGuobaApi() {
  */
 export async function restartBotApi() {
   return requestClient.post('/bot/restart', {});
+}
+
+export async function getGuobaConsoleLogsApi(params?: {
+  date?: string;
+  keyword?: string;
+  limit?: number;
+  type?: GuobaConsoleLogType;
+}) {
+  return requestClient.get<GuobaConsoleLogResult>('/console/logs', { params });
 }
 
 export async function sendGuobaMessageApi(data: GuobaMessageSendRequest) {
