@@ -42,6 +42,43 @@ export interface GuobaTaskRecord {
   updatedAt: string;
 }
 
+export interface GuobaFileLocation {
+  name: string;
+  path: string;
+  relativePath: string;
+}
+
+export interface GuobaFileRoot {
+  key: string;
+  path: string;
+  title: string;
+}
+
+export interface GuobaFileEntry {
+  editable: boolean;
+  extension: string;
+  isDirectory: boolean;
+  isFile: boolean;
+  modifiedAt: string;
+  name: string;
+  path: string;
+  relativePath: string;
+  size: number;
+  type: 'directory' | 'file';
+}
+
+export interface GuobaFileListResult {
+  current: GuobaFileLocation;
+  items: GuobaFileEntry[];
+  parent?: '' | GuobaFileLocation;
+  roots: GuobaFileRoot[];
+}
+
+export type GuobaFileReadResult = GuobaFileEntry & {
+  content: string;
+  encoding: 'utf8';
+};
+
 /**
  * 获取仪表盘聚合数据
  */
@@ -79,4 +116,36 @@ export async function getGuobaTasksApi(params?: {
 
 export async function getGuobaTaskApi(id: string) {
   return requestClient.get<GuobaTaskRecord>(`/tasks/${encodeURIComponent(id)}`);
+}
+
+export async function getGuobaFileRootsApi() {
+  return requestClient.get<GuobaFileRoot[]>('/files/roots');
+}
+
+export async function getGuobaFileListApi(params?: { path?: string }) {
+  return requestClient.get<GuobaFileListResult>('/files/list', { params });
+}
+
+export async function readGuobaFileApi(path: string) {
+  return requestClient.get<GuobaFileReadResult>('/files/read', {
+    params: { path },
+  });
+}
+
+export async function writeGuobaFileApi(data: { content: string; path: string }) {
+  return requestClient.put<GuobaFileEntry>('/files/write', data);
+}
+
+export async function createGuobaDirectoryApi(data: { name: string; path: string }) {
+  return requestClient.post<GuobaFileEntry>('/files/mkdir', data);
+}
+
+export async function renameGuobaFileApi(data: { name: string; path: string }) {
+  return requestClient.post<GuobaFileEntry>('/files/rename', data);
+}
+
+export async function deleteGuobaFileApi(path: string) {
+  return requestClient.delete<{ path: string }>('/files/delete', {
+    data: { path },
+  });
 }
