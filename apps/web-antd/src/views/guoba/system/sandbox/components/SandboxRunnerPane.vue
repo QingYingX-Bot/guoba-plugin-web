@@ -9,7 +9,6 @@ import { computed } from 'vue';
 
 import {
   Button,
-  Card,
   Descriptions,
   Empty,
   Input,
@@ -56,8 +55,8 @@ function getStatusColor(status?: string) {
 </script>
 
 <template>
-  <Card title="运行控制台">
-    <template #extra>
+  <div class="code-runner">
+    <div class="code-toolbar">
       <Space>
         <Select
           :options="envOptions"
@@ -67,7 +66,7 @@ function getStatusColor(status?: string) {
         />
         <Button :loading="running" type="primary" @click="emit('run')">运行</Button>
       </Space>
-    </template>
+    </div>
     <div class="runner-grid">
       <div class="editor-pane">
         <SandboxChatForm
@@ -115,12 +114,22 @@ function getStatusColor(status?: string) {
         <Empty v-else description="暂无运行结果" />
       </div>
     </div>
-  </Card>
+  </div>
 </template>
 
 <style scoped>
 .env-select {
   width: 180px;
+}
+
+.code-runner {
+  display: grid;
+  gap: 12px;
+}
+
+.code-toolbar {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .runner-grid {

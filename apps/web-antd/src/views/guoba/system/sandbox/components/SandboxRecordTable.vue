@@ -16,9 +16,11 @@ const emit = defineEmits<{
 
 const columns: TableColumnsType<GuobaSandboxRecord> = [
   { dataIndex: 'environmentName', key: 'environmentName', title: '环境', width: 160 },
+  { key: 'mode', title: '类型', width: 90 },
   { key: 'status', title: '状态', width: 100 },
+  { key: 'exitCode', title: '退出码', width: 90 },
   { dataIndex: 'duration', key: 'duration', title: '耗时', width: 100 },
-  { dataIndex: 'codePreview', key: 'codePreview', title: '代码预览', width: 360 },
+  { dataIndex: 'codePreview', key: 'codePreview', title: '内容预览', width: 360 },
   { dataIndex: 'startedAt', key: 'startedAt', title: '开始时间', width: 180 },
 ];
 
@@ -29,15 +31,22 @@ function getStatusColor(status: string) {
   if (status === 'failed') {
     return 'error';
   }
+  if (status === 'timeout') {
+    return 'warning';
+  }
   return 'processing';
+}
+
+function getModeLabel(record: unknown) {
+  return toSandboxRecord(record).mode === 'chat' ? '对话' : 'JS';
 }
 
 function formatTime(value?: string) {
   return value ? value.replace('T', ' ').slice(0, 19) : '-';
 }
 
-function formatChat(record: GuobaSandboxRecord) {
-  const chat = record.chat;
+function formatChat(record: unknown) {
+  const chat = toSandboxRecord(record).chat;
   if (!chat) {
     return '-';
   }
@@ -54,6 +63,10 @@ function formatChat(record: GuobaSandboxRecord) {
 function handleChange(pagination: TablePaginationConfig) {
   emit('change', pagination);
 }
+
+function toSandboxRecord(record: unknown) {
+  return record as GuobaSandboxRecord;
+}
 </script>
 
 <template>
@@ -69,8 +82,14 @@ function handleChange(pagination: TablePaginationConfig) {
       @change="handleChange"
     >
       <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'status'">
+        <template v-if="column.key === 'mode'">
+          <Tag>{{ getModeLabel(record) }}</Tag>
+        </template>
+        <template v-else-if="column.key === 'status'">
           <Tag :color="getStatusColor(record.status)">{{ record.status }}</Tag>
+        </template>
+        <template v-else-if="column.key === 'exitCode'">
+          {{ record.exitCode ?? '-' }}
         </template>
         <template v-else-if="column.key === 'duration'">
           {{ record.duration }} ms
@@ -88,7 +107,13 @@ function handleChange(pagination: TablePaginationConfig) {
           <div v-if="record.replies?.length">
             <strong>模拟回复</strong>
             <div class="reply-list">
-              <pre v-for="item in record.replies" :key="item.messageId">{{ item.content }}</pre>
+              <pre v-for="item in record.replies" :key="item.messageId || item.createdAt">{{ item.content }}</pre>
+            </div>
+          </div>
+          <div v-if="record.logs?.length">
+            <strong>沙盒日志</strong>
+            <div class="reply-list">
+              <pre v-for="item in record.logs" :key="item.id">{{ item.content }}</pre>
             </div>
           </div>
           <div>

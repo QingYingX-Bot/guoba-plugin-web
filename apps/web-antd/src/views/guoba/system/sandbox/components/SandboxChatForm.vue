@@ -6,9 +6,12 @@ import type {
 
 import { Checkbox, Input, Segmented, Space } from 'ant-design-vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   chat: GuobaSandboxChatInput;
-}>();
+  showMessage?: boolean;
+}>(), {
+  showMessage: true,
+});
 
 const emit = defineEmits<{
   (event: 'update:chat', value: GuobaSandboxChatInput): void;
@@ -83,6 +86,7 @@ function updateType(value: string | number) {
       />
     </div>
     <Input.TextArea
+      v-if="showMessage"
       :auto-size="{ minRows: 3, maxRows: 6 }"
       :value="chat.message"
       placeholder="输入模拟消息内容"

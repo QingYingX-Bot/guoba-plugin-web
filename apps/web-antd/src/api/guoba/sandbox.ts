@@ -2,7 +2,13 @@ import { requestClient } from '#/api/request';
 
 import type { GuobaPage } from '../core/user';
 
-export type GuobaSandboxRecordStatus = 'failed' | 'running' | 'success';
+export type GuobaSandboxMessageRole = 'bot' | 'log' | 'user';
+export type GuobaSandboxRecordMode = 'chat' | 'code';
+export type GuobaSandboxRecordStatus =
+  | 'failed'
+  | 'running'
+  | 'success'
+  | 'timeout';
 export type GuobaSandboxChatType = 'group' | 'private';
 
 export interface GuobaSandboxChatInput {
@@ -23,6 +29,27 @@ export interface GuobaSandboxReply {
   createdAt: string;
   messageId: string;
   quote?: boolean;
+}
+
+export interface GuobaSandboxConversationMessage {
+  content: string;
+  createdAt: string;
+  id: string;
+  level?: string;
+  meta?: Record<string, unknown>;
+  role: GuobaSandboxMessageRole;
+  type?: string;
+}
+
+export interface GuobaSandboxConversation {
+  chat: GuobaSandboxChatInput;
+  createdAt: string;
+  environmentId: string;
+  environmentName: string;
+  id: string;
+  messages: GuobaSandboxConversationMessage[];
+  title: string;
+  updatedAt: string;
 }
 
 export interface GuobaSandboxEnvironment {
@@ -46,11 +73,15 @@ export interface GuobaSandboxRecord {
   environmentId: string;
   environmentName: string;
   error: string;
+  exitCode?: null | number;
   finishedAt: string;
   id: string;
+  logs?: GuobaSandboxConversationMessage[];
+  mode?: GuobaSandboxRecordMode;
   output: string;
   replies?: GuobaSandboxReply[];
   result: string;
+  sessionId?: string;
   startedAt: string;
   status: GuobaSandboxRecordStatus;
 }
@@ -112,9 +143,56 @@ export async function runGuobaSandboxApi(data: {
   return requestClient.post<GuobaSandboxRecord>('/sandbox/run', data);
 }
 
+export async function runGuobaSandboxCodeApi(data: {
+  chat?: GuobaSandboxChatInput;
+  code: string;
+  environmentId: string;
+}) {
+  return requestClient.post<GuobaSandboxRecord>('/sandbox/code/run', data);
+}
+
+export async function getGuobaSandboxConversationsApi() {
+  return requestClient.get<GuobaSandboxConversation[]>(
+    '/sandbox/conversations',
+  );
+}
+
+export async function createGuobaSandboxConversationApi(data: {
+  chat: GuobaSandboxChatInput;
+  environmentId: string;
+  title?: string;
+}) {
+  return requestClient.post<GuobaSandboxConversation>(
+    '/sandbox/conversations',
+    data,
+  );
+}
+
+export async function deleteGuobaSandboxConversationApi(id: string) {
+  return requestClient.delete<{ id: string }>(
+    `/sandbox/conversations/${encodeURIComponent(id)}`,
+  );
+}
+
+export async function sendGuobaSandboxConversationMessageApi(
+  id: string,
+  data: {
+    chat: GuobaSandboxChatInput;
+    environmentId: string;
+    message: string;
+  },
+) {
+  return requestClient.post<{
+    conversation: GuobaSandboxConversation;
+    messages: GuobaSandboxConversationMessage[];
+    record: GuobaSandboxRecord;
+  }>(`/sandbox/conversations/${encodeURIComponent(id)}/messages`, data);
+}
+
 export async function getGuobaSandboxRecordsApi(params?: {
   environmentId?: string;
   keyword?: string;
+  mode?: GuobaSandboxRecordMode | '';
   page?: number;
   pageSize?: number;
   status?: GuobaSandboxRecordStatus | '';
