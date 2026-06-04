@@ -1,81 +1,111 @@
 <script lang="ts" setup>
-import type { GuobaConsoleLogResult, GuobaConsoleLogType } from '#/api';
+import type { GuobaConsoleStreamEvent, GuobaConsoleStreamHello } from '#/api';
 
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 
 import { Page } from '@vben/common-ui';
+import { useAppConfig } from '@vben/hooks';
 import { IconifyIcon } from '@vben/icons';
+import { useAccessStore } from '@vben/stores';
 
-import { Button, Card, Input, Select, Space, Tag, Tooltip, Typography, message } from 'ant-design-vue';
-
-import { getGuobaConsoleLogsApi } from '#/api';
+import { Button, Card, Space, Tag, Tooltip, Typography, message } from 'ant-design-vue';
 
 import ConsoleLogPanel from './components/ConsoleLogPanel.vue';
 
-const loading = ref(false);
-const result = ref<GuobaConsoleLogResult>();
-const filters = reactive({
-  date: '',
-  keyword: '',
-  limit: 300,
-  type: 'command' as GuobaConsoleLogType,
-});
+const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
+const accessStore = useAccessStore();
+const eventSource = shallowRef<EventSource>();
+const events = ref<GuobaConsoleStreamEvent[]>([]);
+const status = ref<'closed' | 'connecting' | 'open'>('closed');
+const autoScroll = ref(true);
+const panelRef = ref<HTMLElement>();
 
-const typeOptions = [
-  { label: '命令日志', value: 'command' },
-  { label: '错误日志', value: 'error' },
-];
-const limitOptions = [100, 300, 500, 1000].map((value) => ({
-  label: `${value} 行`,
-  value,
-}));
-const dateOptions = computed(() => (result.value?.dates ?? []).map((date) => ({
-  label: date,
-  value: date,
-})));
-const logItems = computed(() => result.value?.items ?? []);
+const connected = computed(() => status.value === 'open');
 const metaText = computed(() => {
-  const data = result.value;
-  if (!data) {
-    return '';
-  }
-  const time = data.updatedAt ? data.updatedAt.replace('T', ' ').slice(0, 19) : '无更新时间';
-  return `${data.file} | 匹配 ${data.total} 行 | ${time}`;
+  return connected.value ? `实时连接中 | ${events.value.length} 行` : `连接状态：${status.value}`;
 });
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : '日志读取失败';
+function createStreamUrl() {
+  const url = new URL(`${apiURL}/console/stream`, window.location.origin);
+  url.searchParams.set('token', String(accessStore.accessToken || ''));
+  return url.toString();
 }
 
-async function loadLogs() {
-  loading.value = true;
+function parseEventData<T>(event: Event) {
   try {
-    const data = await getGuobaConsoleLogsApi({
-      date: filters.date,
-      keyword: filters.keyword.trim(),
-      limit: filters.limit,
-      type: filters.type,
-    });
-    result.value = data;
-    filters.date = data.date;
-  } catch (error: unknown) {
-    message.error(getErrorMessage(error));
-  } finally {
-    loading.value = false;
+    return JSON.parse((event as MessageEvent).data) as T;
+  } catch {
+    return null;
   }
 }
 
-function handleSearch() {
-  loadLogs();
+function appendEvent(item: GuobaConsoleStreamEvent) {
+  events.value.push(item);
+  if (events.value.length > 1000) {
+    events.value.splice(0, events.value.length - 1000);
+  }
+  scrollToBottom();
 }
 
-watch(() => filters.type, () => {
-  filters.date = '';
-  loadLogs();
-});
+function scrollToBottom() {
+  if (!autoScroll.value) {
+    return;
+  }
+  nextTick(() => {
+    const panel = panelRef.value?.querySelector('.console-panel');
+    if (panel) {
+      panel.scrollTop = panel.scrollHeight;
+    }
+  });
+}
+
+function connect() {
+  disconnect(false);
+  status.value = 'connecting';
+  const source = new EventSource(createStreamUrl());
+  eventSource.value = source;
+  source.onopen = () => {
+    status.value = 'open';
+  };
+  source.onerror = () => {
+    status.value = source.readyState === EventSource.CLOSED ? 'closed' : 'connecting';
+  };
+  source.addEventListener('hello', (event) => {
+    const data = parseEventData<GuobaConsoleStreamHello>(event);
+    if (!data) {
+      return;
+    }
+    events.value = data.replay ?? [];
+    scrollToBottom();
+  });
+  source.addEventListener('console', (event) => {
+    const data = parseEventData<GuobaConsoleStreamEvent>(event);
+    if (!data) {
+      return;
+    }
+    appendEvent(data);
+  });
+}
+
+function disconnect(showMessage = true) {
+  eventSource.value?.close();
+  eventSource.value = undefined;
+  status.value = 'closed';
+  if (showMessage) {
+    message.info('实时控制台已断开');
+  }
+}
+
+function clearConsole() {
+  events.value = [];
+}
 
 onMounted(() => {
-  loadLogs();
+  connect();
+});
+
+onBeforeUnmount(() => {
+  disconnect(false);
 });
 </script>
 
@@ -84,56 +114,35 @@ onMounted(() => {
     <Card>
       <template #title>
         <Space>
-          <span>日志控制台</span>
-          <Tag v-if="result?.truncated" color="orange">尾部截取</Tag>
-          <Tag v-if="result && !result.exists" color="red">文件不存在</Tag>
+          <span>实时控制台</span>
+          <Tag :color="connected ? 'green' : 'orange'">
+            {{ connected ? '已连接' : status === 'connecting' ? '连接中' : '已断开' }}
+          </Tag>
         </Space>
       </template>
       <template #extra>
         <Space wrap>
-          <Select v-model:value="filters.type" :options="typeOptions" class="console-type" />
-          <Select
-            v-model:value="filters.date"
-            :disabled="filters.type !== 'command'"
-            :options="dateOptions"
-            class="console-date"
-            @change="handleSearch"
-          />
-          <Select v-model:value="filters.limit" :options="limitOptions" class="console-limit" @change="handleSearch" />
-          <Input v-model:value="filters.keyword" allow-clear class="console-keyword" placeholder="关键词" @press-enter="handleSearch" />
-          <Button type="primary" @click="handleSearch">搜索</Button>
-          <Tooltip title="刷新">
-            <Button :loading="loading" @click="loadLogs">
-              <IconifyIcon icon="lucide:refresh-cw" />
+          <Tooltip :title="autoScroll ? '关闭自动滚动' : '开启自动滚动'">
+            <Button @click="autoScroll = !autoScroll">
+              <IconifyIcon :icon="autoScroll ? 'lucide:scroll-text' : 'lucide:pause'" />
             </Button>
           </Tooltip>
+          <Button @click="clearConsole">清屏</Button>
+          <Button v-if="connected" danger @click="disconnect()">断开</Button>
+          <Button v-else type="primary" @click="connect">连接</Button>
         </Space>
       </template>
       <Typography.Text class="console-meta" type="secondary">
         {{ metaText }}
       </Typography.Text>
-      <ConsoleLogPanel :items="logItems" :loading="loading" />
+      <div ref="panelRef">
+        <ConsoleLogPanel :items="events" />
+      </div>
     </Card>
   </Page>
 </template>
 
 <style scoped>
-.console-type {
-  width: 120px;
-}
-
-.console-date {
-  width: 150px;
-}
-
-.console-limit {
-  width: 110px;
-}
-
-.console-keyword {
-  width: min(260px, 58vw);
-}
-
 .console-meta {
   display: block;
   margin-bottom: 10px;

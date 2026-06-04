@@ -128,6 +128,20 @@ export interface GuobaConsoleLogResult {
   updatedAt: string;
 }
 
+export interface GuobaConsoleStreamEvent {
+  content: string;
+  createdAt: string;
+  id: number;
+  level: string;
+  raw: string;
+  source: string;
+}
+
+export interface GuobaConsoleStreamHello {
+  connectedAt: string;
+  replay: GuobaConsoleStreamEvent[];
+}
+
 /**
  * 获取仪表盘聚合数据
  */

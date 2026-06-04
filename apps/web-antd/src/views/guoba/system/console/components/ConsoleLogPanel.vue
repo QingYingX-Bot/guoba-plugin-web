@@ -1,11 +1,10 @@
 <script lang="ts" setup>
-import type { GuobaConsoleLogItem } from '#/api';
+import type { GuobaConsoleStreamEvent } from '#/api';
 
 import { Empty, Tag } from 'ant-design-vue';
 
 defineProps<{
-  items: GuobaConsoleLogItem[];
-  loading?: boolean;
+  items: GuobaConsoleStreamEvent[];
 }>();
 
 function getLevelColor(level?: string) {
@@ -21,21 +20,26 @@ function getLevelColor(level?: string) {
   }
   return 'blue';
 }
+
+function formatTime(value: string) {
+  return value ? value.replace('T', ' ').slice(11, 23) : '--:--:--.---';
+}
 </script>
 
 <template>
   <div class="console-panel">
     <div v-if="items.length > 0" class="console-lines">
       <div v-for="item in items" :key="item.id" class="console-line">
-        <span class="console-line__no">{{ item.lineNo }}</span>
-        <span class="console-line__time">{{ item.time || '--:--:--.---' }}</span>
+        <span class="console-line__no">#{{ item.id }}</span>
+        <span class="console-line__time">{{ formatTime(item.createdAt) }}</span>
         <Tag v-if="item.level" :color="getLevelColor(item.level)" class="console-line__level">
           {{ item.level }}
         </Tag>
+        <span class="console-line__source">{{ item.source }}</span>
         <span class="console-line__text">{{ item.content }}</span>
       </div>
     </div>
-    <Empty v-else :description="loading ? '加载中' : '暂无日志'" />
+    <Empty v-else description="等待实时输出" />
   </div>
 </template>
 
@@ -57,7 +61,7 @@ function getLevelColor(level?: string) {
 
 .console-line {
   display: grid;
-  grid-template-columns: 64px 108px 72px minmax(0, 1fr);
+  grid-template-columns: 72px 108px 72px 72px minmax(0, 1fr);
   gap: 8px;
   align-items: start;
   padding: 2px 12px;
@@ -67,7 +71,8 @@ function getLevelColor(level?: string) {
 }
 
 .console-line__no,
-.console-line__time {
+.console-line__time,
+.console-line__source {
   color: #94a3b8;
   user-select: none;
 }
