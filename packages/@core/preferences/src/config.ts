@@ -24,7 +24,7 @@ const defaultPreferences: Preferences = {
     defaultHomePath: '/analytics',
     dynamicTitle: true,
     enableCheckUpdates: true,
-    enableCopyPreferences: true,
+    enableSavePreferences: true,
     enablePreferences: true,
     enableRefreshToken: false,
     enableStickyPreferencesNavigationBar: true,

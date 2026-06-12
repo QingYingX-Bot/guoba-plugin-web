@@ -52,6 +52,17 @@ async function initApplication() {
   const { bootstrap } = await import('./bootstrap');
   await bootstrap(namespace);
 
+  // 从后端加载已保存的 UI 偏好设置（需要在登录之后，否则没有 token）
+  try {
+    const { getUiPreferencesApi } = await import('#/api/guoba/preferences');
+    const saved = await getUiPreferencesApi();
+    if (saved && typeof saved === 'object' && Object.keys(saved).length > 0) {
+      updatePreferences(saved);
+    }
+  } catch {
+    // 首次访问或未登录时忽略
+  }
+
   // 移除并销毁loading
   unmountGlobalLoading();
 }

@@ -56,6 +56,7 @@ export {
   PinOff,
   Plus,
   RotateCw,
+  Save,
   Search,
   SearchX,
   Settings,

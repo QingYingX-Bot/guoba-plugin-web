@@ -681,6 +681,24 @@ async function initComponentAdapter() {
         placement: 'bottomRight',
       });
     },
+    // 保存偏好设置
+    savePreferences: async (data) => {
+      try {
+        const { saveUiPreferencesApi } = await import('#/api/guoba/preferences');
+        await saveUiPreferencesApi(data);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    // 保存成功消息提示
+    savePreferencesSuccess: (title, content) => {
+      notification.success({
+        description: content,
+        message: title,
+        placement: 'bottomRight',
+      });
+    },
   });
 }
 

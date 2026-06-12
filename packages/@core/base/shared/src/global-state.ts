@@ -9,6 +9,8 @@ interface ComponentsState {
 
 interface MessageState {
   copyPreferencesSuccess?: (title: string, content?: string) => void;
+  savePreferences?: (data: Record<string, any>) => Promise<boolean>;
+  savePreferencesSuccess?: (title: string, content?: string) => void;
 }
 
 export interface IGlobalSharedState {
@@ -23,9 +25,15 @@ class GlobalShareState {
   /**
    * 定义框架内部各个场景的消息提示
    */
-  public defineMessage({ copyPreferencesSuccess }: MessageState) {
+  public defineMessage({
+    copyPreferencesSuccess,
+    savePreferences,
+    savePreferencesSuccess,
+  }: MessageState) {
     this.#message = {
       copyPreferencesSuccess,
+      savePreferences,
+      savePreferencesSuccess,
     };
   }
 

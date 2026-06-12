@@ -15,8 +15,8 @@ const appDynamicTitle = defineModel<boolean>('appDynamicTitle');
 const appWatermark = defineModel<boolean>('appWatermark');
 const appWatermarkContent = defineModel<string>('appWatermarkContent');
 const appEnableCheckUpdates = defineModel<boolean>('appEnableCheckUpdates');
-const appEnableCopyPreferences = defineModel<boolean>(
-  'appEnableCopyPreferences',
+const appEnableSavePreferences = defineModel<boolean>(
+  'appEnableSavePreferences',
 );
 </script>
 
@@ -47,7 +47,7 @@ const appEnableCopyPreferences = defineModel<boolean>(
   <SwitchItem v-model="appEnableCheckUpdates">
     {{ $t('preferences.checkUpdates') }}
   </SwitchItem>
-  <SwitchItem v-model="appEnableCopyPreferences">
-    {{ $t('preferences.enableCopyPreferences') }}
+  <SwitchItem v-model="appEnableSavePreferences">
+    {{ $t('preferences.enableSavePreferences') }}
   </SwitchItem>
 </template>

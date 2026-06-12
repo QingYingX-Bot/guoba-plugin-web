@@ -20,7 +20,7 @@ exports[`defaultPreferences immutability test > should not modify the config obj
     "defaultHomePath": "/analytics",
     "dynamicTitle": true,
     "enableCheckUpdates": true,
-    "enableCopyPreferences": true,
+    "enableSavePreferences": true,
     "enablePreferences": true,
     "enableRefreshToken": false,
     "enableStickyPreferencesNavigationBar": true,

@@ -16,7 +16,7 @@ import type { SegmentedItem } from '@vben-core/shadcn-ui';
 
 import { computed, ref } from 'vue';
 
-import { Copy, Pin, PinOff, RotateCw } from '@vben/icons';
+import { Pin, PinOff, RotateCw, Save } from '@vben/icons';
 import { $t, loadLocaleMessages } from '@vben/locales';
 import {
   clearCache,
@@ -32,8 +32,6 @@ import {
   VbenSegmented,
 } from '@vben-core/shadcn-ui';
 import { globalShareState } from '@vben-core/shared/global-state';
-
-import { useClipboard } from '@vueuse/core';
 
 import {
   Animation,
@@ -70,8 +68,8 @@ const appContentCompact = defineModel<ContentCompactType>('appContentCompact');
 const appWatermark = defineModel<boolean>('appWatermark');
 const appWatermarkContent = defineModel<string>('appWatermarkContent');
 const appEnableCheckUpdates = defineModel<boolean>('appEnableCheckUpdates');
-const appEnableCopyPreferences = defineModel<boolean>(
-  'appEnableCopyPreferences',
+const appEnableSavePreferences = defineModel<boolean>(
+  'appEnableSavePreferences',
 );
 const appEnableStickyPreferencesNavigationBar = defineModel<boolean>(
   'appEnableStickyPreferencesNavigationBar',
@@ -187,7 +185,6 @@ const {
   isSideMode,
   isSideNav,
 } = usePreferences();
-const { copy } = useClipboard({ legacy: true });
 
 const [Drawer] = useVbenDrawer();
 
@@ -223,13 +220,19 @@ const showBreadcrumbConfig = computed(() => {
   );
 });
 
-async function handleCopy() {
-  await copy(JSON.stringify(diffPreference.value, null, 2));
+async function handleSave() {
+  if (!diffPreference.value) return;
 
-  message.copyPreferencesSuccess?.(
-    $t('preferences.copyPreferencesSuccessTitle'),
-    $t('preferences.copyPreferencesSuccess'),
-  );
+  const saveFn = message.savePreferences;
+  if (!saveFn) return;
+
+  const success = await saveFn(diffPreference.value);
+  if (success) {
+    message.savePreferencesSuccess?.(
+      $t('preferences.savePreferencesSuccessTitle'),
+      $t('preferences.savePreferencesSuccess'),
+    );
+  }
 }
 
 async function handleClearCache() {
@@ -303,7 +306,7 @@ async function handleReset() {
               <General
                 v-model:app-dynamic-title="appDynamicTitle"
                 v-model:app-enable-check-updates="appEnableCheckUpdates"
-                v-model:app-enable-copy-preferences="appEnableCopyPreferences"
+                v-model:app-enable-save-preferences="appEnableSavePreferences"
                 v-model:app-locale="appLocale"
                 v-model:app-watermark="appWatermark"
                 v-model:app-watermark-content="appWatermarkContent"
@@ -471,15 +474,15 @@ async function handleReset() {
 
       <template #footer>
         <VbenButton
-          v-if="appEnableCopyPreferences"
+          v-if="appEnableSavePreferences"
           :disabled="!diffPreference"
           class="mx-4 w-full"
           size="sm"
           variant="default"
-          @click="handleCopy"
+          @click="handleSave"
         >
-          <Copy class="mr-2 size-3" />
-          {{ $t('preferences.copyPreferences') }}
+          <Save class="mr-2 size-3" />
+          {{ $t('preferences.savePreferences') }}
         </VbenButton>
         <VbenButton
           :disabled="!diffPreference"

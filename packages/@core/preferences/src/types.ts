@@ -53,8 +53,8 @@ interface AppPreferences {
   dynamicTitle: boolean;
   /** 是否开启检查更新 */
   enableCheckUpdates: boolean;
-  /** 是否显示复制偏好设置按钮 */
-  enableCopyPreferences: boolean;
+  /** 是否显示保存偏好设置按钮 */
+  enableSavePreferences: boolean;
   /** 是否显示偏好设置 */
   enablePreferences: boolean;
   /**
