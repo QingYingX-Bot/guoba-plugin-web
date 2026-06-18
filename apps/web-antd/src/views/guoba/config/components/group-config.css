@@ -1,0 +1,359 @@
+.group-config-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+.group-commandbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+}
+
+.group-picker {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.group-picker-label {
+  flex: 0 0 auto;
+  color: rgb(71 85 105);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.group-picker-select {
+  width: min(560px, 100%);
+  min-width: 260px;
+}
+
+.group-picker-option {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.group-picker-option span,
+.group-picker-option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-picker-option small {
+  color: rgb(100 116 139);
+  font-size: 12px;
+}
+
+.group-command-actions {
+  flex: 0 0 auto;
+}
+
+.group-config-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.group-config-editor {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.group-editor-head {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 14px 20px 10px;
+  background: #fff;
+}
+
+.group-editor-title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.group-editor-title strong,
+.group-editor-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-editor-title strong {
+  color: rgb(15 23 42);
+  font-size: 15px;
+}
+
+.group-editor-title span {
+  color: rgb(100 116 139);
+  font-size: 12px;
+}
+
+.group-editor-meta {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.group-editor-switch {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+}
+
+.group-editor-body {
+  min-height: 0;
+  padding: 14px 20px 24px;
+  overflow: auto;
+  background: rgb(250 250 250);
+}
+
+.group-settings-form {
+  max-width: 1280px;
+}
+
+.group-setting-section {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #eceff3;
+}
+
+.group-setting-section:first-child {
+  padding-top: 0;
+}
+
+.group-setting-section-head {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.group-setting-section-head strong {
+  color: rgb(30 41 59);
+  font-size: 13px;
+}
+
+.group-setting-section-head span {
+  color: rgb(100 116 139);
+  font-size: 12px;
+}
+
+.group-setting-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px 12px;
+  min-width: 0;
+}
+
+.group-setting-field {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #eef0f3;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.group-setting-field .ant-form-item {
+  margin-bottom: 0;
+}
+
+.group-setting-field .ant-form-item-label {
+  padding-bottom: 4px;
+}
+
+.group-setting-field .ant-form-item-extra {
+  min-height: 0;
+  margin-top: 4px;
+  color: rgb(100 116 139);
+  font-size: 12px;
+}
+
+.group-field-control {
+  width: 100%;
+}
+
+.group-rules-panel {
+  display: grid;
+  gap: 14px;
+  max-width: 1320px;
+  min-width: 0;
+}
+
+.group-rule-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.group-rule-field-panel,
+.group-rule-library-panel {
+  min-width: 0;
+  border: 1px solid #eef0f3;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.group-rule-field-panel {
+  padding: 12px;
+}
+
+.group-rule-field-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.group-rule-field-head div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.group-rule-field-head strong {
+  color: rgb(30 41 59);
+  font-size: 13px;
+}
+
+.group-rule-field-head small {
+  overflow: hidden;
+  color: rgb(100 116 139);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-rule-form .ant-form-item {
+  margin-bottom: 0;
+}
+
+.group-rule-select {
+  width: 100%;
+}
+
+.group-rule-library-panel {
+  padding: 12px;
+}
+
+.group-rule-library-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 420px) auto auto;
+  gap: 8px;
+  align-items: center;
+  justify-content: start;
+  margin-bottom: 10px;
+}
+
+.group-rule-table .ant-table {
+  overflow: hidden;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+}
+
+.group-rule-table .ant-table-cell {
+  vertical-align: middle;
+}
+
+.group-rule-plugin-cell {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.group-rule-plugin-cell strong,
+.group-rule-plugin-cell span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-rule-plugin-cell span,
+.group-rule-empty-text {
+  color: rgb(100 116 139);
+  font-size: 12px;
+}
+
+.group-rule-action {
+  min-width: 86px;
+}
+
+@media (max-width: 960px) {
+  .group-commandbar,
+  .group-editor-head,
+  .group-editor-switch {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .group-picker {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .group-picker-select {
+    flex: 1 1 260px;
+    width: auto;
+  }
+
+  .group-command-actions,
+  .group-editor-meta {
+    justify-content: flex-start;
+  }
+
+  .group-setting-section {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .group-setting-section-head {
+    padding-top: 0;
+  }
+
+  .group-rule-editor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .group-editor-body {
+    padding: 12px;
+  }
+
+  .group-setting-fields,
+  .group-rule-library-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
