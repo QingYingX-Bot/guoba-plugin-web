@@ -125,7 +125,7 @@ function handleSelectEntry(rawKey: unknown) {
           新增群聊
         </Button>
         <Tooltip title="刷新配置">
-          <Button size="small" :loading="loading" @click="emit('refresh')">
+          <Button aria-label="刷新配置" size="small" :loading="loading" @click="emit('refresh')">
             <IconifyIcon icon="lucide:refresh-cw" />
           </Button>
         </Tooltip>
@@ -133,7 +133,7 @@ function handleSelectEntry(rawKey: unknown) {
           v-if="activeEntry && card.allowDel && !entryTools.isDefault(activeEntry)"
           title="删除当前群配置"
         >
-          <Button danger size="small" @click="emit('deleteEntry', activeEntry)">
+          <Button aria-label="删除当前群配置" danger size="small" @click="emit('deleteEntry', activeEntry)">
             <IconifyIcon icon="lucide:trash-2" />
           </Button>
         </Tooltip>

@@ -245,7 +245,9 @@ async function loadPlugin() {
       notFoundMessage.value = '无效的插件名，请从插件列表重新进入';
       return;
     }
-    const pluginList = await guobaStore.getPlugins(true);
+    // 从插件列表进入时复用已加载的元数据，避免每次打开配置都强制
+    // 重新扫描所有插件及其 schema。直接访问详情页时仍会按需请求列表。
+    const pluginList = await guobaStore.getPlugins();
     const found = pluginList.find(
       (item) => item.name.toLowerCase() === pluginName.value.toLowerCase(),
     );

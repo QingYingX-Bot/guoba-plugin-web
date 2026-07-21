@@ -6,7 +6,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #fff;
+  background: hsl(var(--card));
 }
 
 .group-commandbar {
@@ -16,8 +16,8 @@
   justify-content: space-between;
   min-width: 0;
   padding: 10px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fff;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
 }
 
 .group-picker {
@@ -30,7 +30,7 @@
 
 .group-picker-label {
   flex: 0 0 auto;
-  color: rgb(71 85 105);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 600;
 }
@@ -55,7 +55,7 @@
 }
 
 .group-picker-option small {
-  color: rgb(100 116 139);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
 }
 
@@ -84,7 +84,7 @@
   justify-content: space-between;
   min-width: 0;
   padding: 14px 20px 10px;
-  background: #fff;
+  background: hsl(var(--card));
 }
 
 .group-editor-title {
@@ -101,12 +101,12 @@
 }
 
 .group-editor-title strong {
-  color: rgb(15 23 42);
+  color: hsl(var(--foreground));
   font-size: 15px;
 }
 
 .group-editor-title span {
-  color: rgb(100 116 139);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
 }
 
@@ -124,15 +124,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 20px 12px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fff;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
 }
 
 .group-editor-body {
   min-height: 0;
   padding: 14px 20px 24px;
   overflow: auto;
-  background: rgb(250 250 250);
+  background: hsl(var(--background));
 }
 
 .group-settings-form {
@@ -144,7 +144,7 @@
   grid-template-columns: 148px minmax(0, 1fr);
   gap: 16px;
   padding: 12px 0;
-  border-bottom: 1px solid #eceff3;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .group-setting-section:first-child {
@@ -160,12 +160,12 @@
 }
 
 .group-setting-section-head strong {
-  color: rgb(30 41 59);
+  color: hsl(var(--foreground));
   font-size: 13px;
 }
 
 .group-setting-section-head span {
-  color: rgb(100 116 139);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
 }
 
@@ -179,9 +179,9 @@
 .group-setting-field {
   min-width: 0;
   padding: 10px 12px;
-  border: 1px solid #eef0f3;
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
-  background: #fff;
+  background: hsl(var(--card));
 }
 
 .group-setting-field .ant-form-item {
@@ -195,7 +195,7 @@
 .group-setting-field .ant-form-item-extra {
   min-height: 0;
   margin-top: 4px;
-  color: rgb(100 116 139);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
 }
 
@@ -220,9 +220,9 @@
 .group-rule-field-panel,
 .group-rule-library-panel {
   min-width: 0;
-  border: 1px solid #eef0f3;
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
-  background: #fff;
+  background: hsl(var(--card));
 }
 
 .group-rule-field-panel {
@@ -244,13 +244,13 @@
 }
 
 .group-rule-field-head strong {
-  color: rgb(30 41 59);
+  color: hsl(var(--foreground));
   font-size: 13px;
 }
 
 .group-rule-field-head small {
   overflow: hidden;
-  color: rgb(100 116 139);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -279,7 +279,7 @@
 
 .group-rule-table .ant-table {
   overflow: hidden;
-  border: 1px solid #f0f0f0;
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
 }
 
@@ -302,7 +302,7 @@
 
 .group-rule-plugin-cell span,
 .group-rule-empty-text {
-  color: rgb(100 116 139);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
 }
 
@@ -352,8 +352,17 @@
     padding: 12px;
   }
 
-  .group-setting-fields,
-  .group-rule-library-toolbar {
+  .group-setting-fields {
     grid-template-columns: 1fr;
+  }
+
+  .group-rule-library-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .group-rule-library-toolbar > .ant-tag {
+    grid-column: 1 / -1;
+    width: fit-content;
+    margin-inline-end: 0;
   }
 }

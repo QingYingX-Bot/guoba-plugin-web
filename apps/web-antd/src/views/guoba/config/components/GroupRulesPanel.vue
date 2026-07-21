@@ -116,7 +116,7 @@ function getPluginActionText(field: GroupRuleField, plugin: unknown) {
           @update:value="emit('update:ruleSearchKeyword', String($event ?? ''))"
         />
         <Tooltip title="刷新规则库">
-          <Button :loading="loading" size="small" @click="emit('refreshRules')">
+          <Button aria-label="刷新规则库" :loading="loading" size="small" @click="emit('refreshRules')">
             <IconifyIcon icon="lucide:refresh-cw" />
           </Button>
         </Tooltip>

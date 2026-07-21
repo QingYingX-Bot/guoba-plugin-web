@@ -15,7 +15,6 @@ import {
   Card,
   Col,
   Descriptions,
-  Empty,
   Progress,
   Row,
   Skeleton,
@@ -35,6 +34,7 @@ const userStore = useUserStore();
 const guobaStore = useGuobaStore();
 
 const loading = ref(true);
+const pluginLoading = ref(true);
 const errorText = ref('');
 const dashboard = ref<GuobaDashboardData | null>(null);
 const plugins = ref<GuobaPlugin[]>([]);
@@ -184,25 +184,40 @@ function openPluginDetail(plugin: Partial<GuobaPlugin>) {
 
 async function loadData(force = false) {
   loading.value = true;
+  pluginLoading.value = true;
+  errorText.value = '';
+  const errors: string[] = [];
+
+  const pluginRequest = guobaStore.getPlugins(force)
+    .then((pluginResult) => {
+      plugins.value = Array.isArray(pluginResult) ? pluginResult : [];
+    })
+    .catch((error) => {
+      errors.push(`插件数据加载失败：${
+        error instanceof Error ? error.message : String(error || '未知错误')
+      }`);
+    })
+    .finally(() => {
+      pluginLoading.value = false;
+    });
+
   try {
-    const [pluginResult, dashboardResult] = await Promise.all([
-      guobaStore.getPlugins(force),
-      getDashboardDataApi(),
-    ]);
-    plugins.value = Array.isArray(pluginResult) ? pluginResult : [];
+    const dashboardResult = await getDashboardDataApi();
     dashboard.value = dashboardResult ?? null;
-    errorText.value = '';
   } catch (error) {
-    errorText.value = `数据加载失败：${
+    errors.push(`仪表盘加载失败：${
       error instanceof Error ? error.message : String(error || '未知错误')
-    }`;
+    }`);
   } finally {
     loading.value = false;
   }
+
+  await pluginRequest;
+  errorText.value = errors.join('；');
 }
 
 onMounted(() => {
-  loadData(true);
+  loadData();
 });
 </script>
 
@@ -262,9 +277,10 @@ onMounted(() => {
             </template>
 
             <Table
-              v-if="installedPlugins.length > 0"
               :columns="pluginColumns"
               :data-source="installedPlugins"
+              :loading="pluginLoading"
+              :locale="{ emptyText: '暂无已安装插件' }"
               :pagination="false"
               row-key="name"
               size="small"
@@ -303,7 +319,6 @@ onMounted(() => {
               </template>
             </Table>
 
-            <Empty v-else description="暂无已安装插件" />
           </Card>
         </Col>
 
