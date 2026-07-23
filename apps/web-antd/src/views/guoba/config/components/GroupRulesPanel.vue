@@ -78,7 +78,6 @@ function getPluginActionText(field: GroupRuleField, plugin: unknown) {
             <Select
               allow-clear
               class="group-rule-select"
-              :max-tag-count="6"
               mode="tags"
               placeholder="输入功能名后回车"
               show-search
