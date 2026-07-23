@@ -4,8 +4,6 @@ import type { TableColumnsType } from 'ant-design-vue';
 
 import type { GroupRuleField, GroupRulePlugin, GroupRuleTools, GroupSelectOption, KeyFormEntry } from '../types';
 
-import { computed } from 'vue';
-
 import { IconifyIcon } from '@vben/icons';
 
 import { Button, Form, Input, Select, Space, Table, Tag, Tooltip } from 'ant-design-vue';
@@ -32,19 +30,6 @@ const pluginColumns: TableColumnsType<GroupRulePlugin> = [
   { key: 'active', title: '当前命中', width: 150 },
   { key: 'actions', title: '操作', width: 300 },
 ];
-
-const pluginPagination = computed(() => {
-  if (props.filteredPlugins.length <= 10) {
-    return false;
-  }
-  return {
-    defaultPageSize: 10,
-    hideOnSinglePage: true,
-    showSizeChanger: false,
-    size: 'small' as const,
-  };
-});
-
 function getFieldTone(field: GroupRuleField) {
   return field === 'enable' ? 'green' : 'red';
 }
@@ -129,7 +114,7 @@ function getPluginActionText(field: GroupRuleField, plugin: unknown) {
         :data-source="filteredPlugins"
         :loading="loading"
         :locale="{ emptyText: '暂无可用功能规则' }"
-        :pagination="pluginPagination"
+        :pagination="false"
         row-key="key"
         :scroll="{ x: 860 }"
         size="small"
